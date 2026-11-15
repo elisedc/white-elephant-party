@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Play, Gift, Flame } from 'lucide-react'
+import { Sparkles, Play } from 'lucide-react'
 import { Participant } from '@/types/game'
 import { sounds } from '@/lib/sound'
 
@@ -66,31 +66,8 @@ export const NextPlayerAnnounceModal: React.FC<NextPlayerAnnounceModalProps> = (
               {player.name}
             </h3>
             <p className="text-xs text-stone-500 mt-1.5 max-w-xs mx-auto">
-              {canSteal
-                ? '你可以選擇拆開一份全新禮物，或是搶奪場上其他人已開的禮物！'
-                : '請從中央禮物堆挑選一份全新禮物拆封揭曉！'}
+              請 {player.name} 就位準備！
             </p>
-          </div>
-
-          {/* Action options reminder */}
-          <div className="grid grid-cols-2 gap-2 pt-2 text-left">
-            <div className="p-2.5 rounded-xl border border-stone-200 bg-stone-50/70 text-xs flex items-center gap-2">
-              <Gift className="w-4 h-4 text-rose-600 shrink-0" />
-              <div>
-                <p className="font-bold text-stone-800">拆全新禮物</p>
-                <p className="text-[10px] text-stone-500">當場開箱揭曉</p>
-              </div>
-            </div>
-
-            <div className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
-              canSteal ? 'border-emerald-200 bg-emerald-50/60' : 'border-stone-200 bg-stone-50/40 opacity-60'
-            }`}>
-              <Flame className={`w-4 h-4 shrink-0 ${canSteal ? 'text-emerald-700' : 'text-stone-400'}`} />
-              <div>
-                <p className={`font-bold ${canSteal ? 'text-emerald-900' : 'text-stone-500'}`}>搶場上禮物</p>
-                <p className="text-[10px] text-stone-500">{canSteal ? '奪取已開禮物' : '目前不可搶'}</p>
-              </div>
-            </div>
           </div>
         </div>
 
