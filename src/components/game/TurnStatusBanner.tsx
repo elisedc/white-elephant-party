@@ -56,7 +56,7 @@ export const TurnStatusBanner: React.FC<TurnStatusBannerProps> = ({
       <div
         className={`rounded-3xl border p-6 sm:p-7 shadow-xs text-center transition-all ${
           isStealReaction
-            ? 'border-amber-300 bg-amber-50/70'
+            ? 'border-rose-300 bg-rose-50/80 ring-1 ring-rose-200'
             : 'border-stone-200 bg-white'
         }`}
       >
@@ -67,8 +67,8 @@ export const TurnStatusBanner: React.FC<TurnStatusBannerProps> = ({
           </span>
 
           {isStealReaction ? (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">
-              <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-rose-600 text-white shadow-2xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-white" />
               禮物被搶！反擊時間
             </span>
           ) : (

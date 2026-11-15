@@ -107,7 +107,7 @@ export const ParticipantsGrid: React.FC<ParticipantsGridProps> = ({
                 ) : (
                   <span className="text-[11px] text-stone-400">
                     {p.hasPlayed ? (
-                      <span className="text-orange-600 font-semibold bg-orange-50 px-1.5 py-0.5 rounded border border-orange-200">
+                      <span className="text-rose-700 font-semibold bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
                         被搶待反擊
                       </span>
                     ) : (
