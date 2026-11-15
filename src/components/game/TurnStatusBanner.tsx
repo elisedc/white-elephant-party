@@ -114,77 +114,81 @@ export const TurnStatusBanner: React.FC<TurnStatusBannerProps> = ({
           )}
         </div>
 
-        {/* THE TWO MAIN ACTIONS (Large, Prominent, Centerpiece) */}
+        {/* THE TWO MAIN ACTIONS (Primary Style: Solid Color w/ White Text) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
-          {/* Action 1: Open New Gift */}
+          {/* Action 1: Open New Gift - Solid Cranberry Red with White Text */}
           <button
             type="button"
             disabled={game.unopenedGiftsCount <= 0}
             onClick={onOpenGiftClick}
-            className={`group text-left p-5 rounded-2xl border transition-all flex flex-col justify-between min-h-[135px] ${
+            className={`group text-left p-5 rounded-2xl transition-all flex flex-col justify-between min-h-[140px] ${
               game.unopenedGiftsCount > 0
-                ? 'border-rose-300 bg-gradient-to-br from-rose-50 to-white hover:border-rose-400 hover:shadow-md cursor-pointer'
-                : 'border-stone-200 bg-stone-50 opacity-40 cursor-not-allowed'
+                ? 'bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white shadow-md border border-rose-500 cursor-pointer'
+                : 'bg-stone-200 text-stone-400 border border-stone-200 opacity-60 cursor-not-allowed'
             }`}
           >
             <div className="flex items-center justify-between">
-              <div className="h-11 w-11 rounded-xl bg-rose-600 text-white flex items-center justify-center text-xl shadow-xs">
+              <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-xl ${
+                game.unopenedGiftsCount > 0 ? 'bg-white/20 text-white' : 'bg-stone-300 text-stone-400'
+              }`}>
                 <Gift className="w-5 h-5 text-white" />
               </div>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-700 font-bold border border-rose-200">
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold border ${
+                game.unopenedGiftsCount > 0 ? 'bg-white/20 text-white border-white/30' : 'bg-stone-300 text-stone-500 border-stone-300'
+              }`}>
                 剩 {game.unopenedGiftsCount} 份未拆
               </span>
             </div>
 
-            <div className="pt-2.5">
+            <div className="pt-3">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-lg text-rose-950">
+                <span className="font-extrabold text-xl text-white">
                   拆開全新禮物
                 </span>
-                <ChevronRight className="w-5 h-5 text-rose-400 group-hover:text-rose-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="w-5 h-5 text-white/80 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-xs text-rose-800/80 mt-0.5">
+              <p className="text-xs text-rose-100 mt-1">
                 從中央挑選一份未開封禮物當場揭曉
               </p>
             </div>
           </button>
 
-          {/* Action 2: Steal Opened Gift */}
+          {/* Action 2: Steal Opened Gift - Solid Amber Gold with White Text */}
           <button
             type="button"
             disabled={!canSteal}
             onClick={onStealGiftClick}
-            className={`group text-left p-5 rounded-2xl border transition-all flex flex-col justify-between min-h-[135px] ${
+            className={`group text-left p-5 rounded-2xl transition-all flex flex-col justify-between min-h-[140px] ${
               canSteal
-                ? 'border-amber-300 bg-gradient-to-br from-amber-50 to-white hover:border-amber-400 hover:shadow-md cursor-pointer'
-                : 'border-stone-200 bg-stone-50 opacity-40 cursor-not-allowed'
+                ? 'bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white shadow-md border border-amber-500 cursor-pointer'
+                : 'bg-stone-200 text-stone-400 border border-stone-200 opacity-60 cursor-not-allowed'
             }`}
           >
             <div className="flex items-center justify-between">
-              <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-xl shadow-xs ${
-                canSteal ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-400'
+              <div className={`h-11 w-11 rounded-xl flex items-center justify-center text-xl ${
+                canSteal ? 'bg-white/20 text-white' : 'bg-stone-300 text-stone-400'
               }`}>
-                <Flame className="w-5 h-5 fill-current" />
+                <Flame className="w-5 h-5 fill-current text-white" />
               </div>
               {canSteal ? (
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold border border-amber-200">
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-white/20 text-white border border-white/30">
                   {stealableGiftsCount} 份可搶奪
                 </span>
               ) : (
-                <span className="text-xs text-stone-400">
+                <span className="text-xs text-stone-500">
                   {isFirstTurn ? '第 1 棒開場無法掠奪' : '場上無可搶禮物'}
                 </span>
               )}
             </div>
 
-            <div className="pt-2.5">
+            <div className="pt-3">
               <div className="flex items-center justify-between">
-                <span className="font-extrabold text-lg text-stone-900">
+                <span className="font-extrabold text-xl text-white">
                   搶奪場上禮物
                 </span>
-                <ChevronRight className="w-5 h-5 text-amber-400 group-hover:text-amber-600 group-hover:translate-x-1 transition-all" />
+                <ChevronRight className="w-5 h-5 text-white/80 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-xs text-stone-600 mt-0.5">
+              <p className="text-xs text-amber-100 mt-1">
                 奪取前面玩家已開禮物，讓被搶者反擊
               </p>
             </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import { Badge } from '@/components/ui/badge'
 import { Gift as GiftIcon, Flame, Snowflake, User } from 'lucide-react'
 import { Gift, Participant, GameSettings } from '@/types/game'
 
@@ -28,14 +27,9 @@ export const OpenedGiftsGrid: React.FC<OpenedGiftsGridProps> = ({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <h3 className="font-bold text-base text-stone-900 flex items-center gap-2">
-          <GiftIcon className="w-4 h-4 text-rose-600" />
-          <span>場上已開禮物 ({gifts.length})</span>
-        </h3>
-
-        {/* Filter buttons */}
-        <div className="flex items-center gap-1.5 self-start sm:self-auto bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs">
+      {/* Filter buttons bar without duplicate title */}
+      <div className="flex items-center justify-end">
+        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs">
           <button
             onClick={() => setFilter('ALL')}
             className={`px-2.5 py-1 rounded-lg transition-all ${

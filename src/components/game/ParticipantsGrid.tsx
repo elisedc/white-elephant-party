@@ -1,5 +1,5 @@
 import React from 'react'
-import { Gift as GiftIcon, Flame, Snowflake, Sparkles, Users } from 'lucide-react'
+import { Gift as GiftIcon, Flame, Snowflake, Sparkles } from 'lucide-react'
 import { Participant, Gift, GameSettings } from '@/types/game'
 
 interface ParticipantsGridProps {
@@ -22,31 +22,21 @@ export const ParticipantsGrid: React.FC<ParticipantsGridProps> = ({
   const getGift = (giftId?: string) => gifts.find((g) => g.id === giftId)
 
   return (
-    <div className="space-y-3">
-      {/* Title Bar */}
-      <div className="flex items-center justify-between pb-1 border-b border-stone-100">
-        <h3 className="font-bold text-sm text-stone-900 flex items-center gap-1.5">
-          <Users className="w-4 h-4 text-stone-600" />
-          <span>抽籤順序與持物名單</span>
-          <span className="text-xs font-normal text-stone-500">
-            ({participants.length} 位)
-          </span>
-        </h3>
-
-        <div className="flex items-center gap-3 text-xs text-stone-500">
-          <span className="flex items-center gap-1">
-            <span className="h-2 w-2 rounded-full bg-rose-500" />
-            輪到行動
-          </span>
-          <span className="flex items-center gap-1">
-            <Snowflake className="w-3 h-3 text-cyan-600" />
-            已冰凍保護
-          </span>
-        </div>
+    <div className="space-y-2.5">
+      {/* Legend Bar (No redundant title) */}
+      <div className="flex items-center justify-end gap-3 text-xs text-stone-500 pb-1">
+        <span className="flex items-center gap-1">
+          <span className="h-2 w-2 rounded-full bg-rose-500" />
+          輪到行動
+        </span>
+        <span className="flex items-center gap-1">
+          <Snowflake className="w-3 h-3 text-cyan-600" />
+          已冰凍保護
+        </span>
       </div>
 
       {/* Single Column Player List */}
-      <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
         {sortedParticipants.map((p) => {
           const isActive = p.id === activeParticipantId
           const gift = getGift(p.giftId)
