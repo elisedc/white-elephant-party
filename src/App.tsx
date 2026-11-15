@@ -6,15 +6,15 @@ import { RulesModal } from '@/components/common/RulesModal'
 import { ResetGameModal } from '@/components/common/ResetGameModal'
 import { GameSetupForm } from '@/components/setup/GameSetupForm'
 import { TurnStatusBanner } from '@/components/game/TurnStatusBanner'
+import { LiveStreamFeed } from '@/components/game/LiveStreamFeed'
 import { OpenGiftModal } from '@/components/game/OpenGiftModal'
 import { StealGiftModal } from '@/components/game/StealGiftModal'
 import { FinalSwapModal } from '@/components/game/FinalSwapModal'
 import { ParticipantsModal } from '@/components/game/ParticipantsModal'
 import { OpenedGiftsModal } from '@/components/game/OpenedGiftsModal'
-import { ActionHistoryModal } from '@/components/game/ActionHistoryModal'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown, Gift, Users, History } from 'lucide-react'
+import { Sparkles, Crown, Gift, Users } from 'lucide-react'
 
 export function App() {
   const {
@@ -47,7 +47,6 @@ export function App() {
   // Modals for secondary info
   const [participantsModalOpen, setParticipantsModalOpen] = useState(false)
   const [openedGiftsModalOpen, setOpenedGiftsModalOpen] = useState(false)
-  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   if (isLoading || !game) {
     return (
@@ -106,7 +105,7 @@ export function App() {
       />
 
       {/* Main Body */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
         {/* Phase 1: SETUP */}
         {game.phase === 'SETUP' && (
           <GameSetupForm
@@ -120,71 +119,87 @@ export function App() {
           />
         )}
 
-        {/* Phase 2: PLAYING (Ultra-focused: Current Player, Next Player, and Two Primary Actions) */}
+        {/* Phase 2: PLAYING (Left: Main Turn & Actions, Right: Live Stream Chat Activity Feed) */}
         {game.phase === 'PLAYING' && (
-          <TurnStatusBanner
-            game={game}
-            onOpenGiftClick={() => setOpenGiftModalOpen(true)}
-            onStealGiftClick={() => setStealGiftModalOpen(true)}
-            onUndoClick={undoLastAction}
-            onOpenParticipants={() => setParticipantsModalOpen(true)}
-            onOpenOpenedGifts={() => setOpenedGiftsModalOpen(true)}
-            onOpenHistory={() => setHistoryModalOpen(true)}
-            canSteal={canSteal}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Left: Main Focus Stage (Whoever is up, Whoever is up next, Two Main Actions) */}
+            <div className="lg:col-span-2">
+              <TurnStatusBanner
+                game={game}
+                onOpenGiftClick={() => setOpenGiftModalOpen(true)}
+                onStealGiftClick={() => setStealGiftModalOpen(true)}
+                onUndoClick={undoLastAction}
+                onOpenParticipants={() => setParticipantsModalOpen(true)}
+                onOpenOpenedGifts={() => setOpenedGiftsModalOpen(true)}
+                canSteal={canSteal}
+              />
+            </div>
+
+            {/* Right: Live Stream Style Activity Log */}
+            <div className="lg:col-span-1 lg:sticky lg:top-20">
+              <LiveStreamFeed logs={game.logs} />
+            </div>
+          </div>
         )}
 
         {/* Phase 3: FINAL_SWAP */}
         {game.phase === 'FINAL_SWAP' && player1 && (
-          <div className="max-w-2xl mx-auto space-y-6 py-6">
-            <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
-              <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
-                <Crown className="w-3.5 h-3.5 text-amber-700" />
-                最終交換權 (The Final Turn)
-              </span>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className="lg:col-span-2 space-y-6">
+              <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
+                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
+                  <Crown className="w-3.5 h-3.5 text-amber-700" />
+                  最終交換權 (The Final Turn)
+                </span>
 
-              <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
-                輪到第 1 棒【{player1.name}】行使特權！
-              </h2>
+                <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
+                  輪到第 1 棒【{player1.name}】行使特權！
+                </h2>
 
-              <p className="text-sm text-stone-600 max-w-md mx-auto">
-                所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
-              </p>
+                <p className="text-sm text-stone-600 max-w-md mx-auto">
+                  所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
+                </p>
 
-              <div className="pt-2">
+                <div className="pt-2">
+                  <Button
+                    size="lg"
+                    variant="default"
+                    onClick={() => setFinalSwapModalOpen(true)}
+                    className="font-bold text-base h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    進行最終決定
+                  </Button>
+                </div>
+              </div>
+
+              {/* Quick buttons */}
+              <div className="flex items-center justify-center gap-3 text-xs">
                 <Button
-                  size="lg"
-                  variant="default"
-                  onClick={() => setFinalSwapModalOpen(true)}
-                  className="font-bold text-base h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setParticipantsModalOpen(true)}
+                  className="border-stone-200 bg-white text-stone-700 shadow-2xs"
                 >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  進行最終決定
+                  <Users className="w-3.5 h-3.5 mr-1 text-stone-500" />
+                  全體名單 ({game.participants.length})
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setOpenedGiftsModalOpen(true)}
+                  className="border-stone-200 bg-white text-stone-700 shadow-2xs"
+                >
+                  <Gift className="w-3.5 h-3.5 mr-1 text-rose-500" />
+                  已開禮物 ({game.gifts.length})
                 </Button>
               </div>
             </div>
 
-            {/* Quick buttons */}
-            <div className="flex items-center justify-center gap-3 text-xs">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setParticipantsModalOpen(true)}
-                className="border-stone-200 bg-white text-stone-700 shadow-2xs"
-              >
-                <Users className="w-3.5 h-3.5 mr-1 text-stone-500" />
-                全體名單 ({game.participants.length})
-              </Button>
-
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setOpenedGiftsModalOpen(true)}
-                className="border-stone-200 bg-white text-stone-700 shadow-2xs"
-              >
-                <Gift className="w-3.5 h-3.5 mr-1 text-rose-500" />
-                已開禮物 ({game.gifts.length})
-              </Button>
+            {/* Right: Live Stream Feed */}
+            <div className="lg:col-span-1 lg:sticky lg:top-20">
+              <LiveStreamFeed logs={game.logs} />
             </div>
           </div>
         )}
@@ -244,7 +259,7 @@ export function App() {
         />
       )}
 
-      {/* Full Participants Roster Modal (On-demand) */}
+      {/* Full Participants Roster Modal (1 Column, On-demand) */}
       <ParticipantsModal
         open={participantsModalOpen}
         onOpenChange={setParticipantsModalOpen}
@@ -263,18 +278,10 @@ export function App() {
         settings={game.settings}
       />
 
-      {/* Action History Log Modal (On-demand) */}
-      <ActionHistoryModal
-        open={historyModalOpen}
-        onOpenChange={setHistoryModalOpen}
-        logs={game.logs}
-      />
-
-      {/* Clean Footer */}
+      {/* Clean Footer - NO "本地存檔" text */}
       <footer className="border-t border-stone-200/80 bg-white py-4 px-4 text-center text-xs text-stone-500">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-center">
           <span>白象禮物交換 • 祝大家聖誕快樂！</span>
-          <span className="text-stone-400">本地存檔 (支援遠端資料庫擴充)</span>
         </div>
       </footer>
     </div>
