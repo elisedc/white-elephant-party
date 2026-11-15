@@ -49,25 +49,38 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
             <span className="hidden sm:inline">遊戲規則</span>
           </Button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          {/* Snow Animation Toggle - Icon only, consistent button style */}
+          <button
+            type="button"
             onClick={onToggleSnow}
-            className={`h-8 w-8 ${snowEnabled ? 'text-teal-600 bg-teal-50' : 'text-stone-400'}`}
-            title={snowEnabled ? '關閉飄雪' : '開啟飄雪'}
+            className="h-8 w-8 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+            title={snowEnabled ? '關閉飄雪動畫' : '開啟飄雪動畫'}
+            aria-label={snowEnabled ? '關閉飄雪動畫' : '開啟飄雪動畫'}
           >
-            <Snowflake className="w-4 h-4" />
-          </Button>
+            <div className="relative flex items-center justify-center">
+              <Snowflake className="w-4 h-4 text-stone-700" />
+              {!snowEnabled && (
+                <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <span className="w-5 h-[1.5px] bg-stone-700 rotate-45 rounded-full ring-1 ring-white" />
+                </span>
+              )}
+            </div>
+          </button>
 
-          <Button
-            variant="ghost"
-            size="icon"
+          {/* Sound Toggle - Icon only, consistent button style */}
+          <button
+            type="button"
             onClick={onToggleSound}
-            className={`h-8 w-8 ${soundEnabled ? 'text-amber-600 bg-amber-50' : 'text-stone-400'}`}
+            className="h-8 w-8 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
             title={soundEnabled ? '靜音' : '開啟音效'}
+            aria-label={soundEnabled ? '靜音' : '開啟音效'}
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </Button>
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4 text-stone-700" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-stone-700" />
+            )}
+          </button>
 
           <Button
             variant="secondary"
