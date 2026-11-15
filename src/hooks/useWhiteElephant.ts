@@ -85,14 +85,9 @@ export function useWhiteElephant() {
       id,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      settings: { ...DEFAULT_SETTINGS },
+      settings: { ...DEFAULT_SETTINGS, mode: 'online' },
       phase: 'SETUP',
-      participants: [
-        { id: 'p1', name: '小明', order: 0, avatarEmoji: '🎅' },
-        { id: 'p2', name: '小美', order: 0, avatarEmoji: '🎄' },
-        { id: 'p3', name: '阿杰', order: 0, avatarEmoji: '⛄' },
-        { id: 'p4', name: '雅婷', order: 0, avatarEmoji: '🎁' },
-      ],
+      participants: [],
       gifts: [],
       logs: [
         {
@@ -109,7 +104,7 @@ export function useWhiteElephant() {
         isStealReaction: false,
         turnStepCount: 0,
       },
-      unopenedGiftsCount: 4,
+      unopenedGiftsCount: 0,
       historyStack: [],
     }
   }
@@ -175,8 +170,8 @@ export function useWhiteElephant() {
     await saveState(updated)
   }, [game, saveState])
 
-  // Add Participant
-  const addParticipant = useCallback(async (name: string, customAvatarEmoji?: string) => {
+  // Add Participant with joinedVia indicator ('online' vs 'local')
+  const addParticipant = useCallback(async (name: string, customAvatarEmoji?: string, joinedVia: 'online' | 'local' = 'local') => {
     if (!game || !name.trim()) return
     const trimmed = name.trim()
     const newParticipant: Participant = {
@@ -184,6 +179,7 @@ export function useWhiteElephant() {
       name: trimmed,
       order: 0,
       avatarEmoji: customAvatarEmoji || AVATAR_EMOJIS[game.participants.length % AVATAR_EMOJIS.length],
+      joinedVia,
     }
     const updatedParticipants = [...game.participants, newParticipant]
     const updated: GameState = {
@@ -196,7 +192,7 @@ export function useWhiteElephant() {
   }, [game, saveState])
 
   // Add Participants in Batch (multiline or comma-separated)
-  const addParticipantsBatch = useCallback(async (rawText: string) => {
+  const addParticipantsBatch = useCallback(async (rawText: string, joinedVia: 'online' | 'local' = 'local') => {
     if (!game || !rawText.trim()) return
     const names = rawText
       .split(/[\n,，、\t]+/)
@@ -209,6 +205,7 @@ export function useWhiteElephant() {
       name,
       order: 0,
       avatarEmoji: AVATAR_EMOJIS[(game.participants.length + idx) % AVATAR_EMOJIS.length],
+      joinedVia,
     }))
 
     const updatedParticipants = [...game.participants, ...newParticipants]
@@ -235,12 +232,34 @@ export function useWhiteElephant() {
     await saveState(updated)
   }, [game, saveState])
 
+  // Clear Participants (by mode: 'local' or 'online', or all)
+  const clearParticipants = useCallback(async (mode?: 'online' | 'local') => {
+    if (!game) return
+    const updatedParticipants = mode
+      ? game.participants.filter((p) =>
+          mode === 'online' ? p.joinedVia !== 'online' : p.joinedVia === 'online'
+        )
+      : []
+    const updated: GameState = {
+      ...game,
+      participants: updatedParticipants,
+      unopenedGiftsCount: updatedParticipants.length,
+      historyStack: pushHistorySnapshot(game),
+    }
+    await saveState(updated)
+  }, [game, saveState])
+
   // Draw Turn Order (Random shuffle & assign 1 to N)
-  const drawTurnOrder = useCallback(async () => {
-    if (!game || game.participants.length < 2) return
+  const drawTurnOrder = useCallback(async (activeMode?: 'online' | 'local') => {
+    if (!game) return
+    const currentMode = activeMode || game.settings.mode || 'online'
+    const targetParticipants = game.participants.filter((p) =>
+      currentMode === 'online' ? p.joinedVia === 'online' : p.joinedVia !== 'online'
+    )
+    if (targetParticipants.length < 2) return
 
     // Shuffle participants randomly
-    const shuffled = [...game.participants]
+    const shuffled = [...targetParticipants]
     for (let i = shuffled.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
       ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
@@ -265,6 +284,10 @@ export function useWhiteElephant() {
 
     const updated: GameState = {
       ...game,
+      settings: {
+        ...game.settings,
+        mode: currentMode,
+      },
       phase: 'DRAWING',
       participants: assigned,
       gifts: [],
@@ -709,6 +732,7 @@ export function useWhiteElephant() {
     addParticipant,
     addParticipantsBatch,
     removeParticipant,
+    clearParticipants,
     drawTurnOrder,
     startPlayingGame,
     backToSetup,

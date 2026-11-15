@@ -90,6 +90,7 @@ function HostApp() {
     addParticipant,
     addParticipantsBatch,
     removeParticipant,
+    clearParticipants,
     drawTurnOrder,
     startPlayingGame,
     backToSetup,
@@ -143,7 +144,7 @@ function HostApp() {
           (p) => p.name.trim().toLowerCase() === name.trim().toLowerCase()
         )
         if (!exists && game.phase === 'SETUP') {
-          addParticipant(name, avatarEmoji)
+          addParticipant(name, avatarEmoji, 'online')
           addLiveLog({
             id: `join_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
             timestamp: Date.now(),
@@ -239,7 +240,7 @@ function HostApp() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative bg-[#faf7f2]">
+    <div className="h-screen flex flex-col relative bg-[#faf7f2] overflow-hidden">
       {/* Falling Snowflakes (Clean SVG) */}
       <Snowfall enabled={snowEnabled} />
 
@@ -253,22 +254,23 @@ function HostApp() {
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
         onOpenRules={() => setRulesOpen(true)}
         onNewGame={() => setResetModalOpen(true)}
-        onOpenQrCode={() => setQrModalOpen(true)}
+        onOpenQrCode={game.phase !== 'SETUP' ? () => setQrModalOpen(true) : undefined}
       />
 
       {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-2.5 sm:py-3.5 flex flex-col min-h-0 overflow-y-auto">
         {/* Phase 1: SETUP */}
         {game.phase === 'SETUP' && (
           <GameSetupForm
+            roomId={game.id}
             settings={game.settings}
             participants={game.participants}
             onUpdateSettings={updateSettings}
             onAddParticipant={addParticipant}
             onAddBatch={addParticipantsBatch}
             onRemoveParticipant={removeParticipant}
+            onClearParticipants={clearParticipants}
             onStartDrawing={drawTurnOrder}
-            onOpenQrCode={() => setQrModalOpen(true)}
           />
         )}
 
@@ -277,7 +279,7 @@ function HostApp() {
           <DrawingRevealScreen
             participants={game.participants}
             onStartGame={startPlayingGame}
-            onRedraw={drawTurnOrder}
+            onRedraw={() => drawTurnOrder(game.settings.mode)}
             onBackToSetup={backToSetup}
           />
         )}
@@ -464,7 +466,7 @@ function HostApp() {
       <FloatingReactionsOverlay reactions={reactions} showSenderName={true} />
 
       {/* Clean Footer - NO "本地存檔" text */}
-      <footer className="border-t border-stone-200/80 bg-white py-4 px-4 text-center text-xs text-stone-500">
+      <footer className="border-t border-stone-200/80 bg-white py-2 px-4 text-center text-[11px] text-stone-500 shrink-0">
         <div className="max-w-7xl mx-auto flex items-center justify-center">
           <span>白象禮物交換 • 祝大家聖誕快樂！</span>
         </div>

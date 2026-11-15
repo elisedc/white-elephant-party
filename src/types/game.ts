@@ -7,6 +7,7 @@ export interface Participant {
   giftId?: string // Current gift ID held by this participant
   avatarEmoji?: string
   hasPlayed?: boolean
+  joinedVia?: 'online' | 'local'
 }
 
 export interface Gift {
@@ -28,6 +29,7 @@ export interface GameSettings {
   maxSteals: number // Default 3
   allowPlayer1Swap: boolean // Default true
   allowImmediateStealBack: boolean // Default false
+  mode?: 'online' | 'local'
 }
 
 export interface ActionLog {
