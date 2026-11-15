@@ -5,6 +5,14 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
   Users,
   Plus,
   Trash2,
@@ -63,6 +71,12 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
   const handleLoadSample20 = () => {
     onAddBatch(SAMPLE_20_PLAYERS)
   }
+
+  // Count preview of names in batch textarea
+  const previewCount = batchText
+    .split(/[\n,，、\t]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0).length
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -181,7 +195,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowBatchModal(!showBatchModal)}
+                onClick={() => setShowBatchModal(true)}
                 className="text-xs h-8 border-stone-200 text-stone-700 hover:bg-stone-50 bg-white"
               >
                 <ClipboardList className="w-3.5 h-3.5 mr-1 text-emerald-600" />
@@ -205,42 +219,6 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               新增玩家
             </Button>
           </form>
-
-          {/* Batch Modal / Box */}
-          {showBatchModal && (
-            <div className="p-4 rounded-xl border border-stone-200 bg-stone-50 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-800">
-                  一次貼上多位玩家（每行一個名字，或以逗號分開）
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowBatchModal(false)}
-                  className="text-xs text-stone-500 hover:text-stone-800"
-                >
-                  收起
-                </button>
-              </div>
-              <Textarea
-                value={batchText}
-                onChange={(e) => setBatchText(e.target.value)}
-                placeholder="小明&#10;小美&#10;阿杰&#10;志明, 春嬌, 大寶..."
-                rows={4}
-                className="bg-white border-stone-200 text-stone-900"
-              />
-              <div className="flex justify-end gap-2">
-                <Button
-                  size="sm"
-                  variant="default"
-                  onClick={handleBatchSubmit}
-                  disabled={!batchText.trim()}
-                  className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
-                >
-                  匯入名單
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Compact 20-Player Grid */}
           {participants.length === 0 ? (
@@ -297,6 +275,58 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Batch Paste Dialog / Modal */}
+      <Dialog open={showBatchModal} onOpenChange={setShowBatchModal}>
+        <DialogContent className="max-w-md border-stone-200 bg-white text-stone-900 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-emerald-600" />
+              批次貼上玩家名單
+            </DialogTitle>
+            <DialogDescription className="text-stone-500 text-xs">
+              每行輸入一位玩家姓名，或以逗號、頓號分開。可直接從 Excel、Google Sheets 或通訊軟體複製貼上。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-2 space-y-3">
+            <Textarea
+              value={batchText}
+              onChange={(e) => setBatchText(e.target.value)}
+              placeholder="小明&#10;小美&#10;阿杰&#10;志明, 春嬌, 大寶..."
+              rows={6}
+              className="bg-stone-50 border-stone-200 text-stone-900 text-sm"
+              autoFocus
+            />
+
+            {previewCount > 0 && (
+              <p className="text-xs text-stone-600 font-medium">
+                偵測到 <span className="font-bold text-emerald-600">{previewCount}</span> 位玩家
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowBatchModal(false)}
+              className="text-stone-500 hover:text-stone-800"
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={handleBatchSubmit}
+              disabled={previewCount === 0}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+            >
+              確認匯入 ({previewCount} 位)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
