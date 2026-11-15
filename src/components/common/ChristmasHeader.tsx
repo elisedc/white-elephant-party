@@ -14,6 +14,22 @@ interface ChristmasHeaderProps {
   onNewGame: () => void
 }
 
+// Snowflake with diagonal slash line for OFF state
+const SnowflakeOff: React.FC<{ className?: string }> = ({ className = 'w-4 h-4' }) => (
+  <div className={`relative inline-flex items-center justify-center ${className}`}>
+    <Snowflake className="w-full h-full text-stone-700" />
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none"
+      viewBox="0 0 24 24"
+      fill="none"
+      strokeLinecap="round"
+    >
+      <line x1="3" y1="3" x2="21" y2="21" stroke="#ffffff" strokeWidth="4" />
+      <line x1="3" y1="3" x2="21" y2="21" stroke="#44403c" strokeWidth="2.2" />
+    </svg>
+  </div>
+)
+
 export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
   title,
   phase,
@@ -39,34 +55,53 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Rules button */}
           <Button
             variant="ghost"
             size="icon"
             onClick={onOpenRules}
-            className="h-8 w-8 text-stone-600 hover:text-amber-600 hover:bg-amber-50"
+            className="h-8 w-8 text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 hover:text-stone-900 shadow-2xs"
             title="遊戲規則"
           >
             <BookOpen className="w-4 h-4" />
           </Button>
 
+          {/* Snow toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleSnow}
-            className={`h-8 w-8 ${snowEnabled ? 'text-teal-600 bg-teal-50' : 'text-stone-400'}`}
-            title={snowEnabled ? '關閉飄雪' : '開啟飄雪'}
+            className={`h-8 w-8 border transition-all shadow-2xs ${
+              snowEnabled
+                ? 'text-teal-700 bg-teal-50 border-teal-200 hover:bg-teal-100'
+                : 'text-stone-700 bg-white border-stone-200 hover:bg-stone-50 hover:text-stone-900'
+            }`}
+            title={snowEnabled ? '關閉飄雪動畫' : '開啟飄雪動畫'}
           >
-            <Snowflake className="w-4 h-4" />
+            {snowEnabled ? (
+              <Snowflake className="w-4 h-4 text-teal-600" />
+            ) : (
+              <SnowflakeOff className="w-4 h-4" />
+            )}
           </Button>
 
+          {/* Sound toggle */}
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggleSound}
-            className={`h-8 w-8 ${soundEnabled ? 'text-amber-600 bg-amber-50' : 'text-stone-400'}`}
+            className={`h-8 w-8 border transition-all shadow-2xs ${
+              soundEnabled
+                ? 'text-amber-700 bg-amber-50 border-amber-200 hover:bg-amber-100'
+                : 'text-stone-700 bg-white border-stone-200 hover:bg-stone-50 hover:text-stone-900'
+            }`}
             title={soundEnabled ? '靜音' : '開啟音效'}
           >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            {soundEnabled ? (
+              <Volume2 className="w-4 h-4 text-amber-600" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-stone-700" />
+            )}
           </Button>
 
           <Button
