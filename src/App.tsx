@@ -12,6 +12,7 @@ import { StealGiftModal } from '@/components/game/StealGiftModal'
 import { FinalSwapModal } from '@/components/game/FinalSwapModal'
 import { ParticipantsModal } from '@/components/game/ParticipantsModal'
 import { OpenedGiftsModal } from '@/components/game/OpenedGiftsModal'
+import { NextPlayerAnnounceModal } from '@/components/game/NextPlayerAnnounceModal'
 import { DrawingRevealScreen } from '@/components/game/DrawingRevealScreen'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,24 @@ export function App() {
   // Modals for secondary info
   const [participantsModalOpen, setParticipantsModalOpen] = useState(false)
   const [openedGiftsModalOpen, setOpenedGiftsModalOpen] = useState(false)
+
+  // Auto popup announcement dialog when next scheduled player is up (not steal reactions!)
+  const [announcedTurn, setAnnouncedTurn] = useState<number | null>(null)
+  const [nextPlayerModalOpen, setNextPlayerModalOpen] = useState(false)
+
+  React.useEffect(() => {
+    if (game?.phase === 'PLAYING') {
+      if (!game.turnState.isStealReaction && game.turnState.currentOrderNumber >= 2) {
+        if (announcedTurn !== game.turnState.currentOrderNumber) {
+          setAnnouncedTurn(game.turnState.currentOrderNumber)
+          setNextPlayerModalOpen(true)
+        }
+      }
+    } else if (game?.phase === 'SETUP' || game?.phase === 'DRAWING') {
+      setAnnouncedTurn(null)
+      setNextPlayerModalOpen(false)
+    }
+  }, [game?.phase, game?.turnState?.currentOrderNumber, game?.turnState?.isStealReaction, announcedTurn])
 
   if (isLoading || !game) {
     return (
@@ -289,6 +308,16 @@ export function App() {
         gifts={game.gifts}
         participants={game.participants}
         settings={game.settings}
+      />
+
+      {/* Next Player Announcement Modal (Auto opens on next scheduled player, skipped for steal reactions) */}
+      <NextPlayerAnnounceModal
+        open={nextPlayerModalOpen}
+        onOpenChange={setNextPlayerModalOpen}
+        player={activeParticipant}
+        totalParticipants={game.participants.length}
+        canSteal={canSteal}
+        soundEnabled={soundEnabled}
       />
 
       {/* Clean Footer - NO "本地存檔" text */}
