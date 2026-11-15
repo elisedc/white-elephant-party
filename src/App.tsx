@@ -12,6 +12,7 @@ import { StealGiftModal } from '@/components/game/StealGiftModal'
 import { FinalSwapModal } from '@/components/game/FinalSwapModal'
 import { ParticipantsModal } from '@/components/game/ParticipantsModal'
 import { OpenedGiftsModal } from '@/components/game/OpenedGiftsModal'
+import { DrawingRevealScreen } from '@/components/game/DrawingRevealScreen'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Crown, Gift, Users } from 'lucide-react'
@@ -31,6 +32,8 @@ export function App() {
     addParticipantsBatch,
     removeParticipant,
     drawTurnOrder,
+    startPlayingGame,
+    backToSetup,
     openGift,
     stealGift,
     executeFinalSwap,
@@ -88,7 +91,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative selection:bg-rose-500 selection:text-white bg-[#faf7f2]">
+    <div className="min-h-screen flex flex-col relative bg-[#faf7f2]">
       {/* Falling Snowflakes (Clean SVG) */}
       <Snowfall enabled={snowEnabled} />
 
@@ -116,6 +119,16 @@ export function App() {
             onAddBatch={addParticipantsBatch}
             onRemoveParticipant={removeParticipant}
             onStartDrawing={drawTurnOrder}
+          />
+        )}
+
+        {/* Phase 1.5: DRAWING (Order Reveal Screen - announce game is starting) */}
+        {game.phase === 'DRAWING' && (
+          <DrawingRevealScreen
+            participants={game.participants}
+            onStartGame={startPlayingGame}
+            onRedraw={drawTurnOrder}
+            onBackToSetup={backToSetup}
           />
         )}
 

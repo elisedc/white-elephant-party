@@ -40,6 +40,14 @@
   * {
     @apply border-border;
   }
+  ::selection {
+    background-color: #cbd5e1;
+    color: #0f172a;
+  }
+  ::-moz-selection {
+    background-color: #cbd5e1;
+    color: #0f172a;
+  }
   body {
     @apply bg-background text-foreground font-sans;
     font-family: 'Plus Jakarta Sans', 'Noto Sans TC', sans-serif;

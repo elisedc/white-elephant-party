@@ -112,55 +112,90 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
         </Button>
       </div>
 
-      {/* Settings Modal / Drawer */}
-      {showSettingsModal && (
-        <Card className="border-stone-200 bg-white p-5 shadow-xs">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* Settings Dialog Modal */}
+      <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
+        <DialogContent className="max-w-md border-stone-200 bg-white text-stone-900 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <Settings2 className="w-5 h-5 text-amber-600" />
+              遊戲規則設定
+            </DialogTitle>
+            <DialogDescription className="text-stone-500 text-xs">
+              自訂白象聚會名稱、禮物預算限制與防搶奪保護機制。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-semibold text-stone-700 mb-1 block">活動標題</label>
+              <label className="text-xs font-semibold text-stone-700 mb-1.5 block">活動標題</label>
               <Input
                 value={settings.title}
                 onChange={(e) => onUpdateSettings({ title: e.target.value })}
                 placeholder="例如：2024 聖誕白象交換禮物"
-                className="bg-stone-50 border-stone-200 text-stone-900"
+                className="bg-white border-stone-300 text-stone-900 placeholder:text-stone-400"
               />
             </div>
+
             <div>
-              <label className="text-xs font-semibold text-stone-700 mb-1 block">禮物預算範圍</label>
+              <label className="text-xs font-semibold text-stone-700 mb-1.5 block">禮物預算範圍</label>
               <Input
                 value={settings.priceLimit}
                 onChange={(e) => onUpdateSettings({ priceLimit: e.target.value })}
                 placeholder="例如：約 $500 元"
-                className="bg-stone-50 border-stone-200 text-stone-900"
+                className="bg-white border-stone-300 text-stone-900 placeholder:text-stone-400"
               />
             </div>
+
             <div>
-              <label className="text-xs font-semibold text-stone-700 mb-1 block">禮物被搶上限 (次數)</label>
+              <label className="text-xs font-semibold text-stone-700 mb-1.5 block">禮物被搶上限 (滿次冰凍)</label>
               <select
                 value={settings.maxSteals}
                 onChange={(e) => onUpdateSettings({ maxSteals: Number(e.target.value) })}
-                className="flex h-11 w-full rounded-xl border border-stone-200 bg-stone-50 px-3.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-rose-500"
+                className="flex h-11 w-full rounded-xl border border-stone-300 bg-white px-3.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-stone-400"
               >
                 <option value={1}>1 次（快速版）</option>
                 <option value={2}>2 次（中速版）</option>
                 <option value={3}>3 次（官方標準推薦）</option>
                 <option value={4}>4 次（高刺激版）</option>
+                <option value={5}>5 次（大亂鬥版）</option>
               </select>
             </div>
-            <div className="sm:col-span-3 pt-1">
-              <label className="text-xs text-stone-700 flex items-center gap-2 cursor-pointer">
+
+            <div className="space-y-2 pt-1 border-t border-stone-100">
+              <label className="text-xs text-stone-700 flex items-center gap-2 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={settings.allowPlayer1Swap}
                   onChange={(e) => onUpdateSettings({ allowPlayer1Swap: e.target.checked })}
-                  className="rounded border-stone-300 text-rose-600 focus:ring-rose-500 w-4 h-4"
+                  className="rounded border-stone-300 text-rose-600 focus:ring-stone-400 w-4 h-4"
                 />
-                <span>允許第 1 棒在所有玩家結束後享有「最終交換權」</span>
+                <span className="font-medium">允許第 1 棒在所有玩家結束後享有「最終交換權」</span>
+              </label>
+
+              <label className="text-xs text-stone-700 flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={!settings.allowImmediateStealBack}
+                  onChange={(e) => onUpdateSettings({ allowImmediateStealBack: !e.target.checked })}
+                  className="rounded border-stone-300 text-rose-600 focus:ring-stone-400 w-4 h-4"
+                />
+                <span className="font-medium">防連續回搶：不可立刻搶回上一秒被搶走的那份禮物</span>
               </label>
             </div>
           </div>
-        </Card>
-      )}
+
+          <DialogFooter className="pt-2">
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => setShowSettingsModal(false)}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs h-9"
+            >
+              完成設定
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Participants Manager - Designed for 20 Players */}
       <Card className="border-stone-200/90 bg-white shadow-xs">
@@ -212,7 +247,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               placeholder="輸入玩家姓名（按 Enter 直接新增）"
-              className="flex-1 bg-stone-50 border-stone-200 text-stone-900"
+              className="flex-1 bg-white border-stone-300 text-stone-900 placeholder:text-stone-400"
             />
             <Button type="submit" variant="default" className="shrink-0 bg-rose-600 hover:bg-rose-700 text-white font-semibold">
               <Plus className="w-4 h-4 mr-1" />
@@ -295,7 +330,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               onChange={(e) => setBatchText(e.target.value)}
               placeholder="小明&#10;小美&#10;阿杰&#10;志明, 春嬌, 大寶..."
               rows={6}
-              className="bg-stone-50 border-stone-200 text-stone-900 text-sm"
+              className="bg-white border-stone-300 text-stone-900 text-sm placeholder:text-stone-400"
               autoFocus
             />
 

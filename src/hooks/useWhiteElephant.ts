@@ -265,7 +265,7 @@ export function useWhiteElephant() {
 
     const updated: GameState = {
       ...game,
-      phase: 'PLAYING',
+      phase: 'DRAWING',
       participants: assigned,
       gifts: [],
       unopenedGiftsCount: assigned.length,
@@ -289,6 +289,47 @@ export function useWhiteElephant() {
       colors: ['#e11d48', '#22c55e', '#fbbf24', '#ffffff'],
     })
   }, [game, saveState, soundEnabled])
+
+  // Officially start playing the game after viewing the drawn order
+  const startPlayingGame = useCallback(async () => {
+    if (!game) return
+    const firstPlayer = game.participants.find((p) => p.order === 1)
+    const log: ActionLog = {
+      id: `log_${Date.now()}`,
+      timestamp: Date.now(),
+      type: 'GAME_START',
+      actorName: '遊戲正式開始',
+      message: `白象交換禮物正式開始囉！第 1 棒【${firstPlayer?.name || '玩家 1'}】請拆開第一份全新禮物！`,
+    }
+
+    const updated: GameState = {
+      ...game,
+      phase: 'PLAYING',
+      logs: [log, ...game.logs],
+      turnState: {
+        ...game.turnState,
+        currentOrderNumber: 1,
+        activeParticipantId: firstPlayer?.id || '',
+        isStealReaction: false,
+        turnStepCount: 0,
+      },
+      historyStack: pushHistorySnapshot(game),
+    }
+
+    await saveState(updated)
+    if (soundEnabled) sounds.playJingle()
+  }, [game, saveState, soundEnabled])
+
+  // Return to setup phase if needed
+  const backToSetup = useCallback(async () => {
+    if (!game) return
+    const updated: GameState = {
+      ...game,
+      phase: 'SETUP',
+      historyStack: pushHistorySnapshot(game),
+    }
+    await saveState(updated)
+  }, [game, saveState])
 
   // Advance turn to next scheduled player, or trigger Final Swap / Finished
   const advanceTurn = useCallback((
@@ -659,6 +700,8 @@ export function useWhiteElephant() {
     addParticipantsBatch,
     removeParticipant,
     drawTurnOrder,
+    startPlayingGame,
+    backToSetup,
     openGift,
     stealGift,
     executeFinalSwap,
