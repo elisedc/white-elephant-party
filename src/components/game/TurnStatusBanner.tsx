@@ -153,14 +153,14 @@ export const TurnStatusBanner: React.FC<TurnStatusBannerProps> = ({
             </div>
           </button>
 
-          {/* Action 2: Steal Opened Gift - Solid Amber Gold with White Text */}
+          {/* Action 2: Steal Opened Gift - Solid Christmas Pine Green with White Text */}
           <button
             type="button"
             disabled={!canSteal}
             onClick={onStealGiftClick}
             className={`group text-left p-5 rounded-2xl transition-all flex flex-col justify-between min-h-[140px] ${
               canSteal
-                ? 'bg-amber-600 hover:bg-amber-700 active:scale-[0.99] text-white shadow-md border border-amber-500 cursor-pointer'
+                ? 'bg-emerald-700 hover:bg-emerald-800 active:scale-[0.99] text-white shadow-md border border-emerald-600 cursor-pointer'
                 : 'bg-stone-200 text-stone-400 border border-stone-200 opacity-60 cursor-not-allowed'
             }`}
           >
@@ -188,7 +188,7 @@ export const TurnStatusBanner: React.FC<TurnStatusBannerProps> = ({
                 </span>
                 <ChevronRight className="w-5 h-5 text-white/80 group-hover:text-white group-hover:translate-x-1 transition-all" />
               </div>
-              <p className="text-xs text-amber-100 mt-1">
+              <p className="text-xs text-emerald-100 mt-1">
                 奪取前面玩家已開禮物，讓被搶者反擊
               </p>
             </div>

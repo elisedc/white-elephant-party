@@ -202,7 +202,7 @@ export const GameSummary: React.FC<GameSummaryProps> = ({
                         </span>
                       ) : (
                         <span className="text-[10px] text-stone-400">
-                          原裝
+                          沒被搶過
                         </span>
                       )}
                     </div>

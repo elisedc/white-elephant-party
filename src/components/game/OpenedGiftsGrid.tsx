@@ -101,7 +101,7 @@ export const OpenedGiftsGrid: React.FC<OpenedGiftsGridProps> = ({
                       </span>
                     ) : (
                       <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
-                        原裝未搶
+                        沒被搶過
                       </span>
                     )}
                   </div>
