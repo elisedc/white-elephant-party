@@ -32,7 +32,7 @@ export const ParticipantsModal: React.FC<ParticipantsModalProps> = ({
         <DialogHeader className="pb-3 border-b border-stone-100">
           <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-rose-600" />
-            全體玩家抽籤順序與持物現況 ({participants.length} 人)
+            玩家名單 ({participants.length} 人)
           </DialogTitle>
         </DialogHeader>
 

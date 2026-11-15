@@ -116,10 +116,16 @@ export const StealGiftModal: React.FC<StealGiftModalProps> = ({
                       </span>
 
                       {gift.tags && gift.tags.length > 0 && (
-                        <span className="flex items-center gap-1 text-stone-400">
-                          <Tag className="w-3 h-3" />
-                          {gift.tags.join('、')}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {gift.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="text-[10px] px-2 py-0.5 rounded-md bg-stone-100 text-stone-600 border border-stone-200"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

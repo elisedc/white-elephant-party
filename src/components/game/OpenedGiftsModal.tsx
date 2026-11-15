@@ -30,7 +30,7 @@ export const OpenedGiftsModal: React.FC<OpenedGiftsModalProps> = ({
         <DialogHeader className="pb-3 border-b border-stone-100">
           <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
             <GiftIcon className="w-5 h-5 text-rose-600" />
-            場上已拆封禮物清單 ({gifts.length} 份)
+            已開禮物清單 ({gifts.length} 份)
           </DialogTitle>
         </DialogHeader>
 
