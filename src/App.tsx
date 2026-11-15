@@ -9,12 +9,12 @@ import { TurnStatusBanner } from '@/components/game/TurnStatusBanner'
 import { OpenGiftModal } from '@/components/game/OpenGiftModal'
 import { StealGiftModal } from '@/components/game/StealGiftModal'
 import { FinalSwapModal } from '@/components/game/FinalSwapModal'
-import { ParticipantsGrid } from '@/components/game/ParticipantsGrid'
-import { OpenedGiftsGrid } from '@/components/game/OpenedGiftsGrid'
-import { ActionHistoryLog } from '@/components/game/ActionHistoryLog'
+import { ParticipantsModal } from '@/components/game/ParticipantsModal'
+import { OpenedGiftsModal } from '@/components/game/OpenedGiftsModal'
+import { ActionHistoryModal } from '@/components/game/ActionHistoryModal'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown, Gift } from 'lucide-react'
+import { Sparkles, Crown, Gift, Users, History } from 'lucide-react'
 
 export function App() {
   const {
@@ -43,6 +43,11 @@ export function App() {
   const [openGiftModalOpen, setOpenGiftModalOpen] = useState(false)
   const [stealGiftModalOpen, setStealGiftModalOpen] = useState(false)
   const [finalSwapModalOpen, setFinalSwapModalOpen] = useState(false)
+
+  // Modals for secondary info
+  const [participantsModalOpen, setParticipantsModalOpen] = useState(false)
+  const [openedGiftsModalOpen, setOpenedGiftsModalOpen] = useState(false)
+  const [historyModalOpen, setHistoryModalOpen] = useState(false)
 
   if (isLoading || !game) {
     return (
@@ -85,7 +90,7 @@ export function App() {
 
   return (
     <div className="min-h-screen flex flex-col relative selection:bg-rose-500 selection:text-white bg-[#faf7f2]">
-      {/* Falling Snowflakes */}
+      {/* Falling Snowflakes (Clean SVG) */}
       <Snowfall enabled={snowEnabled} />
 
       {/* Main Header */}
@@ -101,7 +106,7 @@ export function App() {
       />
 
       {/* Main Body */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Phase 1: SETUP */}
         {game.phase === 'SETUP' && (
           <GameSetupForm
@@ -115,114 +120,82 @@ export function App() {
           />
         )}
 
-        {/* Phase 2: PLAYING */}
+        {/* Phase 2: PLAYING (Ultra-focused: Current Player, Next Player, and Two Primary Actions) */}
         {game.phase === 'PLAYING' && (
-          <div className="space-y-6">
-            {/* Active Turn Command Center & Primary Actions */}
-            <TurnStatusBanner
-              game={game}
-              onOpenGiftClick={() => setOpenGiftModalOpen(true)}
-              onStealGiftClick={() => setStealGiftModalOpen(true)}
-              onUndoClick={undoLastAction}
-              canSteal={canSteal}
-            />
-
-            {/* Layout: 20-Player Grid & Opened Gifts + Timeline */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <ParticipantsGrid
-                  participants={game.participants}
-                  gifts={game.gifts}
-                  activeParticipantId={game.turnState.activeParticipantId}
-                  settings={game.settings}
-                />
-
-                <OpenedGiftsGrid
-                  gifts={game.gifts}
-                  participants={game.participants}
-                  settings={game.settings}
-                />
-              </div>
-
-              <div className="space-y-6">
-                <ActionHistoryLog logs={game.logs} />
-              </div>
-            </div>
-          </div>
+          <TurnStatusBanner
+            game={game}
+            onOpenGiftClick={() => setOpenGiftModalOpen(true)}
+            onStealGiftClick={() => setStealGiftModalOpen(true)}
+            onUndoClick={undoLastAction}
+            onOpenParticipants={() => setParticipantsModalOpen(true)}
+            onOpenOpenedGifts={() => setOpenedGiftsModalOpen(true)}
+            onOpenHistory={() => setHistoryModalOpen(true)}
+            canSteal={canSteal}
+          />
         )}
 
         {/* Phase 3: FINAL_SWAP */}
         {game.phase === 'FINAL_SWAP' && player1 && (
-          <div className="space-y-6">
-            <div className="p-6 rounded-2xl border border-amber-300 bg-amber-50/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5 uppercase">
-                  <Crown className="w-4 h-4 text-amber-700" />
-                  最終交換權 (The Final Turn)
-                </span>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900">
-                  輪到第 1 棒【{player1.name}】行使最終特權！
-                </h3>
-                <p className="text-xs sm:text-sm text-stone-600">
-                  所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
-                </p>
-              </div>
+          <div className="max-w-2xl mx-auto space-y-6 py-6">
+            <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
+              <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
+                <Crown className="w-3.5 h-3.5 text-amber-700" />
+                最終交換權 (The Final Turn)
+              </span>
 
-              <Button
-                size="lg"
-                variant="default"
-                onClick={() => setFinalSwapModalOpen(true)}
-                className="shrink-0 font-bold bg-amber-500 hover:bg-amber-600 text-white"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                開啟最終決定視窗
-              </Button>
+              <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
+                輪到第 1 棒【{player1.name}】行使特權！
+              </h2>
+
+              <p className="text-sm text-stone-600 max-w-md mx-auto">
+                所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
+              </p>
+
+              <div className="pt-2">
+                <Button
+                  size="lg"
+                  variant="default"
+                  onClick={() => setFinalSwapModalOpen(true)}
+                  className="font-bold text-base h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  進行最終決定
+                </Button>
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 space-y-6">
-                <ParticipantsGrid
-                  participants={game.participants}
-                  gifts={game.gifts}
-                  activeParticipantId={player1.id}
-                  settings={game.settings}
-                />
-                <OpenedGiftsGrid
-                  gifts={game.gifts}
-                  participants={game.participants}
-                  settings={game.settings}
-                />
-              </div>
+            {/* Quick buttons */}
+            <div className="flex items-center justify-center gap-3 text-xs">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setParticipantsModalOpen(true)}
+                className="border-stone-200 bg-white text-stone-700 shadow-2xs"
+              >
+                <Users className="w-3.5 h-3.5 mr-1 text-stone-500" />
+                全體名單 ({game.participants.length})
+              </Button>
 
-              <div className="space-y-6">
-                <ActionHistoryLog logs={game.logs} />
-              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setOpenedGiftsModalOpen(true)}
+                className="border-stone-200 bg-white text-stone-700 shadow-2xs"
+              >
+                <Gift className="w-3.5 h-3.5 mr-1 text-rose-500" />
+                已開禮物 ({game.gifts.length})
+              </Button>
             </div>
           </div>
         )}
 
         {/* Phase 4: FINISHED */}
         {game.phase === 'FINISHED' && (
-          <div className="space-y-8">
-            <GameSummary
-              game={game}
-              onRestartNewGame={() => setResetModalOpen(true)}
-              onExportJson={handleExportJson}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <OpenedGiftsGrid
-                  gifts={game.gifts}
-                  participants={game.participants}
-                  settings={game.settings}
-                />
-              </div>
-              <div>
-                <ActionHistoryLog logs={game.logs} />
-              </div>
-            </div>
-          </div>
+          <GameSummary
+            game={game}
+            onRestartNewGame={() => setResetModalOpen(true)}
+            onExportJson={handleExportJson}
+          />
         )}
       </main>
 
@@ -238,7 +211,7 @@ export function App() {
         onResetFresh={startNewGame}
       />
 
-      {/* Open Gift Modal */}
+      {/* Open Gift Modal (Simple: Title & Tags only) */}
       <OpenGiftModal
         open={openGiftModalOpen}
         onOpenChange={setOpenGiftModalOpen}
@@ -271,11 +244,37 @@ export function App() {
         />
       )}
 
+      {/* Full Participants Roster Modal (On-demand) */}
+      <ParticipantsModal
+        open={participantsModalOpen}
+        onOpenChange={setParticipantsModalOpen}
+        participants={game.participants}
+        gifts={game.gifts}
+        activeParticipantId={game.turnState.activeParticipantId}
+        settings={game.settings}
+      />
+
+      {/* Opened Gifts List Modal (On-demand) */}
+      <OpenedGiftsModal
+        open={openedGiftsModalOpen}
+        onOpenChange={setOpenedGiftsModalOpen}
+        gifts={game.gifts}
+        participants={game.participants}
+        settings={game.settings}
+      />
+
+      {/* Action History Log Modal (On-demand) */}
+      <ActionHistoryModal
+        open={historyModalOpen}
+        onOpenChange={setHistoryModalOpen}
+        logs={game.logs}
+      />
+
       {/* Clean Footer */}
       <footer className="border-t border-stone-200/80 bg-white py-4 px-4 text-center text-xs text-stone-500">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>白象禮物交換 • 祝大家聖誕快樂！</span>
-          <span className="text-stone-400">本地存檔 (支援遠端資料庫切換)</span>
+          <span className="text-stone-400">本地存檔 (支援遠端資料庫擴充)</span>
         </div>
       </footer>
     </div>
