@@ -17,6 +17,7 @@ import { NextPlayerAnnounceModal } from '@/components/game/NextPlayerAnnounceMod
 import { DrawingRevealScreen } from '@/components/game/DrawingRevealScreen'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { PlayerMobileView } from '@/components/player/PlayerMobileView'
+import { LandingJoinScreen } from '@/components/home/LandingJoinScreen'
 import { RoomRealtimeBridge } from '@/services/realtime/channel'
 import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
 import { Button } from '@/components/ui/button'
@@ -76,7 +77,7 @@ function PlayerApp({ roomId }: { roomId: string }) {
 /**
  * Host Big-Screen Interactive Game Console
  */
-function HostApp() {
+function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
   const {
     game,
     isLoading,
@@ -255,6 +256,7 @@ function HostApp() {
         onOpenRules={() => setRulesOpen(true)}
         onNewGame={() => setResetModalOpen(true)}
         onOpenQrCode={game.phase !== 'SETUP' ? () => setQrModalOpen(true) : undefined}
+        onBackToLanding={onBackToLanding}
       />
 
       {/* Main Body */}
@@ -286,7 +288,7 @@ function HostApp() {
 
         {/* Phase 2: PLAYING (Left: Main Turn & Actions, Right: Live Stream Chat Activity Feed) */}
         {game.phase === 'PLAYING' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch flex-1 min-h-0">
             {/* Left: Main Focus Stage (Whoever is up, Whoever is up next, Two Main Actions) */}
             <div className="lg:col-span-2">
               <TurnStatusBanner
@@ -301,7 +303,7 @@ function HostApp() {
             </div>
 
             {/* Right: Live Stream Style Activity Log */}
-            <div className="lg:col-span-1 lg:sticky lg:top-20">
+            <div className="lg:col-span-1 h-full min-h-0 flex flex-col">
               <LiveStreamFeed logs={game.logs} />
             </div>
           </div>
@@ -309,7 +311,7 @@ function HostApp() {
 
         {/* Phase 3: FINAL_SWAP */}
         {game.phase === 'FINAL_SWAP' && player1 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch flex-1 min-h-0">
             <div className="lg:col-span-2 space-y-6">
               <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
                 <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
@@ -363,7 +365,7 @@ function HostApp() {
             </div>
 
             {/* Right: Live Stream Feed */}
-            <div className="lg:col-span-1 lg:sticky lg:top-20">
+            <div className="lg:col-span-1 h-full min-h-0 flex flex-col">
               <LiveStreamFeed logs={game.logs} />
             </div>
           </div>
@@ -476,22 +478,77 @@ function HostApp() {
 }
 
 /**
- * Root Application Router: Role-based view selection
+ * Root Application Router: Role-based view selection with Landing Screen
  */
 export function App() {
   const [searchParams] = useState(() => new URLSearchParams(window.location.search))
-  const role = searchParams.get('role')
-  const defaultRoom =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('white_elephant_active_game_id') || 'white-elephant-party'
-      : 'white-elephant-party'
-  const roomId = searchParams.get('room') || defaultRoom
+  const roleParam = searchParams.get('role')
+  const roomParam = searchParams.get('room')
 
-  if (role === 'player') {
-    return <PlayerApp roomId={roomId} />
+  // Initial view:
+  // - If role=player in URL -> direct to player companion
+  // - If role=host in URL -> direct to host dashboard
+  // - Otherwise -> initial landing screen (enter 7-character code or start new game)
+  const [currentView, setCurrentView] = useState<'landing' | 'player' | 'host'>(() => {
+    if (roleParam === 'player') return 'player'
+    if (roleParam === 'host') return 'host'
+    return 'landing'
+  })
+
+  const [activeRoomId, setActiveRoomId] = useState<string>(() => {
+    if (roomParam) return roomParam
+    return ''
+  })
+
+  // Handle joining a party with 7-char code from landing screen
+  const handleJoinParty = (code: string) => {
+    const cleaned = code.trim().toUpperCase()
+    setActiveRoomId(cleaned)
+    setCurrentView('player')
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('role', 'player')
+      url.searchParams.set('room', cleaned)
+      window.history.pushState({}, '', url.toString())
+    }
   }
 
-  return <HostApp />
+  // Handle starting a new game as host from landing screen
+  const handleStartNewGame = () => {
+    setCurrentView('host')
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.set('role', 'host')
+      url.searchParams.delete('room')
+      window.history.pushState({}, '', url.toString())
+    }
+  }
+
+  // Handle returning to landing screen
+  const handleBackToLanding = () => {
+    setCurrentView('landing')
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('role')
+      url.searchParams.delete('room')
+      window.history.pushState({}, '', url.toString())
+    }
+  }
+
+  if (currentView === 'player' && activeRoomId) {
+    return <PlayerApp roomId={activeRoomId} />
+  }
+
+  if (currentView === 'host') {
+    return <HostApp onBackToLanding={handleBackToLanding} />
+  }
+
+  return (
+    <LandingJoinScreen
+      onJoinParty={handleJoinParty}
+      onStartNewGame={handleStartNewGame}
+    />
+  )
 }
 
 export default App

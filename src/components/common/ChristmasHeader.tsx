@@ -13,6 +13,7 @@ interface ChristmasHeaderProps {
   onOpenRules: () => void
   onNewGame: () => void
   onOpenQrCode?: () => void
+  onBackToLanding?: () => void
 }
 
 // Snowflake with diagonal slash line for OFF state
@@ -41,12 +42,17 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
   onOpenRules,
   onNewGame,
   onOpenQrCode,
+  onBackToLanding,
 }) => {
   return (
     <header className="sticky top-0 z-30 w-full border-b border-stone-200/80 bg-white/95 backdrop-blur-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
         {/* Title */}
-        <div className="flex items-center gap-2">
+        <div
+          onClick={onBackToLanding}
+          className={`flex items-center gap-2 ${onBackToLanding ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
+          title={onBackToLanding ? '點擊返回首頁' : undefined}
+        >
           <div className="h-8 w-8 rounded-lg bg-rose-50 border border-rose-200 flex items-center justify-center">
             <Gift className="w-4 h-4 text-rose-600" />
           </div>

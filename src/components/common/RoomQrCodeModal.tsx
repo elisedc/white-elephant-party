@@ -66,12 +66,15 @@ export const RoomQrCodeModal: React.FC<RoomQrCodeModalProps> = ({
             />
           </div>
 
-          {/* Room info pill */}
-          <div className="flex items-center justify-center gap-2 text-xs">
-            <span className="font-mono font-bold px-3 py-1 rounded-full bg-stone-100 text-stone-700 border border-stone-200">
-              房間代碼：{roomId}
+          {/* Room info callout */}
+          <div className="w-full flex flex-col items-center justify-center py-2 px-3 bg-stone-100/90 rounded-xl border border-stone-200 text-center">
+            <span className="text-[11px] font-bold text-stone-500 tracking-wider">
+              派對加入代碼
             </span>
-            <span className="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+            <span className="font-mono font-black text-2xl tracking-widest text-stone-900 select-all">
+              {roomId}
+            </span>
+            <span className="text-[11px] text-emerald-700 font-semibold mt-1">
               目前 {participantCount} 位已加入
             </span>
           </div>

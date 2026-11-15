@@ -79,8 +79,17 @@ export function useWhiteElephant() {
     return [...(currentState.historyStack || []).slice(-15), serialized]
   }
 
+  function generate7CharacterRoomCode(): string {
+    const chars = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ'
+    let result = ''
+    for (let i = 0; i < 7; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return result
+  }
+
   function createInitialGameState(): GameState {
-    const id = `game_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`
+    const id = generate7CharacterRoomCode()
     return {
       id,
       createdAt: Date.now(),
@@ -170,8 +179,13 @@ export function useWhiteElephant() {
     await saveState(updated)
   }, [game, saveState])
 
-  // Add Participant with joinedVia indicator ('online' vs 'local')
-  const addParticipant = useCallback(async (name: string, customAvatarEmoji?: string, joinedVia: 'online' | 'local' = 'local') => {
+  // Add Participant with joinedVia indicator ('online' vs 'local') and isManual flag
+  const addParticipant = useCallback(async (
+    name: string,
+    customAvatarEmoji?: string,
+    joinedVia: 'online' | 'local' = 'local',
+    isManual?: boolean
+  ) => {
     if (!game || !name.trim()) return
     const trimmed = name.trim()
     const newParticipant: Participant = {
@@ -180,6 +194,7 @@ export function useWhiteElephant() {
       order: 0,
       avatarEmoji: customAvatarEmoji || AVATAR_EMOJIS[game.participants.length % AVATAR_EMOJIS.length],
       joinedVia,
+      isManual,
     }
     const updatedParticipants = [...game.participants, newParticipant]
     const updated: GameState = {

@@ -8,6 +8,7 @@ export interface Participant {
   avatarEmoji?: string
   hasPlayed?: boolean
   joinedVia?: 'online' | 'local'
+  isManual?: boolean
 }
 
 export interface Gift {

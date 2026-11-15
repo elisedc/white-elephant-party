@@ -51,7 +51,7 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
   }
 
   return (
-    <Card className="border-stone-200/90 bg-white shadow-xs h-full flex flex-col rounded-3xl overflow-hidden min-h-[480px]">
+    <Card className="border-stone-200/90 bg-white shadow-xs h-full flex flex-col rounded-2xl sm:rounded-3xl overflow-hidden min-h-[400px] lg:min-h-0 flex-1">
       {/* Live Stream Style Header */}
       <CardHeader className="py-3 px-4 border-b border-stone-100 bg-stone-50/70 shrink-0">
         <div className="flex items-center justify-between">
@@ -73,7 +73,7 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
       {/* Chat Messages Body */}
       <CardContent
         ref={scrollRef}
-        className="p-3.5 flex-1 overflow-y-auto space-y-2.5 max-h-[520px] scroll-smooth"
+        className="p-3.5 flex-1 min-h-0 overflow-y-auto space-y-2.5 scroll-smooth"
       >
         {chronologicalLogs.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-stone-400 py-12">

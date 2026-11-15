@@ -37,7 +37,7 @@ interface GameSetupFormProps {
   settings: GameSettings
   participants: Participant[]
   onUpdateSettings: (settings: Partial<GameSettings>) => void
-  onAddParticipant: (name: string, customAvatarEmoji?: string, joinedVia?: 'online' | 'local') => void
+  onAddParticipant: (name: string, customAvatarEmoji?: string, joinedVia?: 'online' | 'local', isManual?: boolean) => void
   onAddBatch: (rawText: string, joinedVia?: 'online' | 'local') => void
   onRemoveParticipant: (id: string) => void
   onClearParticipants?: (mode: 'online' | 'local') => void
@@ -64,6 +64,10 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
   const onlineParticipants = participants.filter((p) => p.joinedVia === 'online')
   const localParticipants = participants.filter((p) => p.joinedVia === 'local' || !p.joinedVia)
 
+  // Online mode manual input & clear modal states
+  const [onlineNameInput, setOnlineNameInput] = useState('')
+  const [showClearOnlineConfirmModal, setShowClearOnlineConfirmModal] = useState(false)
+
   // Local mode input states
   const [nameInput, setNameInput] = useState('')
   const [batchText, setBatchText] = useState('')
@@ -86,10 +90,18 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
     }
   }
 
+  const handleOnlineSingleAdd = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (onlineNameInput.trim()) {
+      onAddParticipant(onlineNameInput.trim(), undefined, 'online', true)
+      setOnlineNameInput('')
+    }
+  }
+
   const handleSingleAdd = (e: React.FormEvent) => {
     e.preventDefault()
     if (nameInput.trim()) {
-      onAddParticipant(nameInput.trim(), undefined, 'local')
+      onAddParticipant(nameInput.trim(), undefined, 'local', false)
       setNameInput('')
     }
   }
@@ -113,7 +125,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
     .filter((s) => s.length > 0).length
 
   return (
-    <div className="h-full flex flex-col justify-between space-y-2 sm:space-y-3 min-h-0 max-w-5xl w-full mx-auto">
+    <div className="min-h-full md:h-full flex flex-col justify-between space-y-2 sm:space-y-3 min-h-0 max-w-5xl w-full mx-auto pb-4 md:pb-0">
       {/* Clean Header Bar - Compact Height */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5 rounded-xl border border-stone-200/90 bg-white shadow-xs shrink-0">
         <div>
@@ -155,14 +167,13 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               setMode('online')
               onUpdateSettings({ mode: 'online' })
             }}
-            className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
-              mode === 'online'
+            className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${mode === 'online'
                 ? 'bg-white text-rose-600 shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
-            }`}
+              }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
-            線上派對模式（QR Code 掃碼加入）
+            線上派對模式
           </button>
 
           <button
@@ -171,14 +182,13 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               setMode('local')
               onUpdateSettings({ mode: 'local' })
             }}
-            className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${
-              mode === 'local'
+            className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${mode === 'local'
                 ? 'bg-white text-stone-900 shadow-xs'
                 : 'text-stone-600 hover:text-stone-900'
-            }`}
+              }`}
           >
             <Laptop className="w-3.5 h-3.5 text-stone-600" />
-            本地單機模式（手動打名單）
+            本地單機模式
           </button>
         </div>
       </div>
@@ -187,9 +197,9 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
       {/* MODE 1: ONLINE PARTY (Lobby with QR Code & Realtime Roster)   */}
       {/* ------------------------------------------------------------- */}
       {mode === 'online' && (
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch overflow-hidden">
-          {/* Left: QR Code Card (Fitted to viewport) */}
-          <Card className="md:col-span-5 border-stone-200/90 bg-white shadow-xs p-4 flex flex-col items-center justify-between text-center min-h-0 overflow-hidden">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch overflow-y-auto md:overflow-hidden pr-0.5">
+          {/* Left: QR Code Card (Fitted to viewport on desktop, scrollable on mobile) */}
+          <Card className="md:col-span-5 border-stone-200/90 bg-white shadow-xs p-3.5 sm:p-4 flex flex-col items-center justify-between text-center shrink-0 md:shrink md:min-h-0 overflow-visible md:overflow-hidden space-y-2.5 sm:space-y-3 md:space-y-0">
             <div className="space-y-1 shrink-0">
               <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
                 <QrCode className="w-3 h-3" />
@@ -204,15 +214,19 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
             </div>
 
             {/* QR Code Container */}
-            <div className="p-2.5 bg-white rounded-xl border-2 border-stone-200 shadow-2xs my-auto shrink-0">
-              <QRCodeSVG value={joinUrl} size={150} level="M" />
+            <div className="p-2 sm:p-2.5 bg-white rounded-xl border-2 border-stone-200 shadow-2xs my-1 sm:my-2 md:my-auto shrink-0">
+              <QRCodeSVG value={joinUrl} size={140} level="M" />
             </div>
 
-            {/* Room info & copy link */}
-            <div className="w-full space-y-2 shrink-0">
-              <div className="flex items-center justify-between text-xs bg-stone-50 px-3 py-1.5 rounded-xl border border-stone-200 text-stone-600">
-                <span className="text-stone-500 font-medium">房間代碼</span>
-                <span className="font-mono font-bold text-stone-900">{roomId}</span>
+            {/* Room info callout & copy link */}
+            <div className="w-full space-y-2 shrink-0 pt-0.5">
+              <div className="flex flex-col items-center justify-center py-2 px-3 bg-stone-100/90 rounded-xl border border-stone-200 text-center">
+                <span className="text-[11px] font-bold text-stone-500 tracking-wider">
+                  派對加入代碼
+                </span>
+                <span className="font-mono font-black text-2xl tracking-widest text-stone-900 select-all">
+                  {roomId}
+                </span>
               </div>
 
               <Button
@@ -237,7 +251,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
           </Card>
 
           {/* Right: Live Player Lobby Wall */}
-          <Card className="md:col-span-7 border-stone-200/90 bg-white shadow-xs flex flex-col justify-between min-h-0 overflow-hidden">
+          <Card className="md:col-span-7 border-stone-200/90 bg-white shadow-xs flex flex-col justify-between min-h-[380px] md:min-h-0 overflow-hidden shrink-0 md:shrink">
             <CardHeader className="py-2.5 px-4 border-b border-stone-100 flex flex-row items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Users className="w-4 h-4 text-rose-600" />
@@ -250,14 +264,46 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
                 </Badge>
               </div>
 
-              {onlineParticipants.length >= 20 && (
-                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                  已達 20 人規模
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {onlineParticipants.length >= 20 && (
+                  <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    已達 20 人規模
+                  </span>
+                )}
+
+                {onlineParticipants.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowClearOnlineConfirmModal(true)}
+                    className="text-xs h-8 px-2.5 rounded-lg border-stone-200 text-stone-500 hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 font-medium transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-1" />
+                    清除所有玩家
+                  </Button>
+                )}
+              </div>
             </CardHeader>
 
-            <CardContent className="flex-1 flex flex-col justify-between p-3.5 min-h-0 overflow-hidden">
+            <CardContent className="flex-1 flex flex-col justify-between p-3.5 min-h-0 overflow-hidden space-y-2.5">
+              {/* Quick manual entry for guests without a smartphone */}
+              <form onSubmit={handleOnlineSingleAdd} className="flex gap-2 shrink-0">
+                <Input
+                  value={onlineNameInput}
+                  onChange={(e) => setOnlineNameInput(e.target.value)}
+                  placeholder="現場朋友沒帶手機？輸入姓名手動入座..."
+                  className="flex-1 h-8 bg-white border-stone-300 text-stone-900 placeholder:text-stone-400 text-xs"
+                />
+                <Button
+                  type="submit"
+                  variant="default"
+                  className="shrink-0 h-8 px-3 bg-stone-800 hover:bg-stone-900 text-white font-semibold text-xs"
+                >
+                  <Plus className="w-3.5 h-3.5 mr-1" />
+                  手動入座
+                </Button>
+              </form>
+
               {onlineParticipants.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-4 border border-dashed border-stone-200 bg-stone-50/50 rounded-xl space-y-1.5">
                   <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center animate-pulse">
@@ -265,7 +311,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
                   </div>
                   <p className="font-bold text-stone-700 text-xs">等待玩家掃碼入座中...</p>
                   <p className="text-[11px] text-stone-500 max-w-xs">
-                    現場朋友掃描左側 QR Code 並按加入後，姓名會即時出現在這裡！
+                    現場朋友掃描左側 QR Code 加入，或直接在上方輸入姓名手動入座！
                   </p>
                 </div>
               ) : (
@@ -281,6 +327,11 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
                         </span>
                         <span className="text-sm shrink-0">{p.avatarEmoji || '🎅'}</span>
                         <span className="font-bold text-stone-800 truncate">{p.name}</span>
+                        {p.isManual && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-stone-200/80 text-stone-600 shrink-0 font-normal">
+                            現場
+                          </span>
+                        )}
                       </div>
                       <button
                         type="button"
@@ -593,16 +644,16 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Clear Participants Confirmation Modal */}
+      {/* Clear Local Participants Confirmation Modal */}
       <Dialog open={showClearConfirmModal} onOpenChange={setShowClearConfirmModal}>
         <DialogContent className="max-w-sm border-stone-200 bg-white text-stone-900 p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-stone-900 flex items-center gap-2">
               <Trash2 className="w-4 h-4 text-rose-600" />
-              清除所有玩家名單
+              清除所有本地玩家
             </DialogTitle>
             <DialogDescription className="text-stone-500 text-xs">
-              確定要清空目前「本地手動模式」的所有玩家（共 {localParticipants.length} 位）嗎？此動作將移除所有已輸入的玩家名單。
+              確定要清空目前「本地手動模式」的所有玩家（共 {localParticipants.length} 位）嗎？此動作將移除所有手動輸入的玩家名單。
             </DialogDescription>
           </DialogHeader>
 
@@ -625,6 +676,43 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs h-9 px-4"
             >
               確認清除 ({localParticipants.length} 位)
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Clear Online Participants Confirmation Modal */}
+      <Dialog open={showClearOnlineConfirmModal} onOpenChange={setShowClearOnlineConfirmModal}>
+        <DialogContent className="max-w-sm border-stone-200 bg-white text-stone-900 p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-stone-900 flex items-center gap-2">
+              <Trash2 className="w-4 h-4 text-rose-600" />
+              清空線上大廳玩家
+            </DialogTitle>
+            <DialogDescription className="text-stone-500 text-xs">
+              確定要清空目前線上大廳的所有已入座玩家（共 {onlineParticipants.length} 位）嗎？包含掃碼入座與手動入座的玩家。
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-2 flex flex-row items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowClearOnlineConfirmModal(false)}
+              className="text-stone-600 text-xs h-9 px-4"
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => {
+                onClearParticipants?.('online')
+                setShowClearOnlineConfirmModal(false)
+              }}
+              className="bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs h-9 px-4"
+            >
+              確認清空 ({onlineParticipants.length} 位)
             </Button>
           </DialogFooter>
         </DialogContent>
