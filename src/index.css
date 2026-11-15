@@ -103,3 +103,40 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #b8ad9e;
 }
+
+/* Google Meet style floating emoji reactions */
+@keyframes meet-reaction-float {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.35);
+  }
+  12% {
+    opacity: 1;
+    transform: translate3d(calc(var(--drift-x, 0px) * 0.25), -60px, 0) scale(1.15);
+  }
+  28% {
+    opacity: 0.98;
+    transform: translate3d(calc(var(--drift-x, 0px) * -0.35), -180px, 0) scale(1);
+  }
+  60% {
+    opacity: 0.95;
+    transform: translate3d(calc(var(--drift-x, 0px) * 0.65), -400px, 0) scale(0.96);
+  }
+  85% {
+    opacity: 0.55;
+    transform: translate3d(calc(var(--drift-x, 0px) * 0.9), -580px, 0) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift-x, 0px), -700px, 0) scale(0.75);
+  }
+}
+
+.floating-reaction {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  user-select: none;
+  will-change: transform, opacity;
+  animation: meet-reaction-float var(--float-duration, 3s) cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Button } from '@/components/ui/button'
-import { Gift, BookOpen, Volume2, VolumeX, Snowflake, RotateCcw } from 'lucide-react'
+import { Gift, BookOpen, Volume2, VolumeX, Snowflake, RotateCcw, QrCode } from 'lucide-react'
 import { GamePhase } from '@/types/game'
 
 interface ChristmasHeaderProps {
@@ -12,6 +12,7 @@ interface ChristmasHeaderProps {
   onToggleSound: () => void
   onOpenRules: () => void
   onNewGame: () => void
+  onOpenQrCode?: () => void
 }
 
 // Snowflake with diagonal slash line for OFF state
@@ -39,6 +40,7 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
   onToggleSound,
   onOpenRules,
   onNewGame,
+  onOpenQrCode,
 }) => {
   return (
     <header className="sticky top-0 z-30 w-full border-b border-stone-200/80 bg-white/95 backdrop-blur-md">
@@ -55,6 +57,19 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
+          {/* QR Code button for host */}
+          {onOpenQrCode && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenQrCode}
+              className="h-8 w-8 text-stone-700 bg-white border border-stone-200 hover:bg-stone-50 hover:text-stone-900 shadow-2xs"
+              title="手機掃描加入"
+            >
+              <QrCode className="w-4 h-4 text-rose-600" />
+            </Button>
+          )}
+
           {/* Rules button */}
           <Button
             variant="ghost"

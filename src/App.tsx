@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useWhiteElephant } from '@/hooks/useWhiteElephant'
 import { Snowfall } from '@/components/common/Snowfall'
 import { ChristmasHeader } from '@/components/common/ChristmasHeader'
 import { RulesModal } from '@/components/common/RulesModal'
 import { ResetGameModal } from '@/components/common/ResetGameModal'
+import { RoomQrCodeModal } from '@/components/common/RoomQrCodeModal'
 import { GameSetupForm } from '@/components/setup/GameSetupForm'
 import { TurnStatusBanner } from '@/components/game/TurnStatusBanner'
 import { LiveStreamFeed } from '@/components/game/LiveStreamFeed'
@@ -15,10 +16,67 @@ import { OpenedGiftsModal } from '@/components/game/OpenedGiftsModal'
 import { NextPlayerAnnounceModal } from '@/components/game/NextPlayerAnnounceModal'
 import { DrawingRevealScreen } from '@/components/game/DrawingRevealScreen'
 import { GameSummary } from '@/components/summary/GameSummary'
+import { PlayerMobileView } from '@/components/player/PlayerMobileView'
+import { RoomRealtimeBridge } from '@/services/realtime/channel'
+import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Crown, Gift, Users } from 'lucide-react'
+import { GameState } from '@/types/game'
 
-export function App() {
+/**
+ * Mobile Player Companion View
+ */
+function PlayerApp({ roomId }: { roomId: string }) {
+  const bridge = useMemo(() => new RoomRealtimeBridge(roomId), [roomId])
+  const [gameState, setGameState] = useState<GameState | null>(() => {
+    try {
+      const activeId = localStorage.getItem('white_elephant_active_game_id')
+      if (activeId === roomId || !roomId) {
+        const store = JSON.parse(localStorage.getItem('white_elephant_games_store_v1') || '{}')
+        return store[activeId || roomId] || null
+      }
+    } catch {
+      // ignore
+    }
+    return null
+  })
+
+  useEffect(() => {
+    // Listen for state sync from host
+    const unsubscribe = bridge.subscribe((msg) => {
+      if (msg.type === 'SYNC_STATE') {
+        setGameState(msg.payload.gameState)
+      }
+    })
+
+    // Initial state request
+    bridge.send('REQUEST_SYNC', {})
+
+    // Periodic heartbeat sync request to stay in sync
+    const interval = setInterval(() => {
+      bridge.send('REQUEST_SYNC', {})
+    }, 3000)
+
+    return () => {
+      unsubscribe()
+      clearInterval(interval)
+      bridge.destroy()
+    }
+  }, [bridge])
+
+  return (
+    <PlayerMobileView
+      roomId={roomId}
+      bridge={bridge}
+      gameState={gameState}
+    />
+  )
+}
+
+/**
+ * Host Big-Screen Interactive Game Console
+ */
+function HostApp() {
   const {
     game,
     isLoading,
@@ -40,10 +98,12 @@ export function App() {
     executeFinalSwap,
     undoLastAction,
     exportGameJson,
+    addLiveLog,
   } = useWhiteElephant()
 
   const [rulesOpen, setRulesOpen] = useState(false)
   const [resetModalOpen, setResetModalOpen] = useState(false)
+  const [qrModalOpen, setQrModalOpen] = useState(false)
   const [openGiftModalOpen, setOpenGiftModalOpen] = useState(false)
   const [stealGiftModalOpen, setStealGiftModalOpen] = useState(false)
   const [finalSwapModalOpen, setFinalSwapModalOpen] = useState(false)
@@ -56,7 +116,76 @@ export function App() {
   const [announcedTurn, setAnnouncedTurn] = useState<number | null>(null)
   const [nextPlayerModalOpen, setNextPlayerModalOpen] = useState(false)
 
-  React.useEffect(() => {
+  // Google Meet style floating reactions for host screen
+  const { reactions, triggerReaction } = useFloatingReactions()
+
+  // Realtime communication bridge for remote player devices
+  const bridge = useMemo(() => {
+    if (!game?.id) return null
+    return new RoomRealtimeBridge(game.id)
+  }, [game?.id])
+
+  // Sync state broadcast whenever game updates
+  useEffect(() => {
+    if (bridge && game) {
+      bridge.send('SYNC_STATE', { gameState: game })
+    }
+  }, [bridge, game])
+
+  // Listen to remote player events (Join, Chat comment, Emoji reaction, Sync request)
+  useEffect(() => {
+    if (!bridge || !game) return
+
+    const unsubscribe = bridge.subscribe((msg) => {
+      if (msg.type === 'PLAYER_JOIN') {
+        const { name, avatarEmoji } = msg.payload
+        const exists = game.participants.some(
+          (p) => p.name.trim().toLowerCase() === name.trim().toLowerCase()
+        )
+        if (!exists && game.phase === 'SETUP') {
+          addParticipant(name, avatarEmoji)
+          addLiveLog({
+            id: `join_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            timestamp: Date.now(),
+            type: 'PLAYER_JOINED',
+            actorName: name,
+            actorAvatarEmoji: avatarEmoji,
+            message: `${avatarEmoji || '🎄'} ${name} 透過手機加入遊戲！`,
+          })
+        }
+      } else if (msg.type === 'CHAT_MESSAGE') {
+        const { senderName, avatarEmoji, text } = msg.payload
+        addLiveLog({
+          id: `chat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: Date.now(),
+          type: 'CHAT_MESSAGE',
+          actorName: senderName,
+          actorAvatarEmoji: avatarEmoji,
+          message: text,
+        })
+      } else if (msg.type === 'EMOJI_REACTION') {
+        const { senderName, avatarEmoji, emoji } = msg.payload
+        triggerReaction(emoji, senderName, avatarEmoji)
+        addLiveLog({
+          id: `emoji_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: Date.now(),
+          type: 'EMOJI_REACTION',
+          actorName: senderName,
+          actorAvatarEmoji: avatarEmoji,
+          emoji,
+          message: `傳送了 ${emoji}`,
+        })
+      } else if (msg.type === 'REQUEST_SYNC') {
+        bridge.send('SYNC_STATE', { gameState: game })
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [bridge, game, addParticipant, addLiveLog])
+
+  useEffect(() => {
     if (game?.phase === 'PLAYING') {
       if (!game.turnState.isStealReaction && game.turnState.currentOrderNumber >= 2) {
         if (announcedTurn !== game.turnState.currentOrderNumber) {
@@ -124,6 +253,7 @@ export function App() {
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
         onOpenRules={() => setRulesOpen(true)}
         onNewGame={() => setResetModalOpen(true)}
+        onOpenQrCode={() => setQrModalOpen(true)}
       />
 
       {/* Main Body */}
@@ -138,6 +268,7 @@ export function App() {
             onAddBatch={addParticipantsBatch}
             onRemoveParticipant={removeParticipant}
             onStartDrawing={drawTurnOrder}
+            onOpenQrCode={() => setQrModalOpen(true)}
           />
         )}
 
@@ -246,6 +377,15 @@ export function App() {
         )}
       </main>
 
+      {/* QR Code Modal for Mobile Players */}
+      <RoomQrCodeModal
+        open={qrModalOpen}
+        onOpenChange={setQrModalOpen}
+        roomId={game.id}
+        roomTitle={game.settings.title}
+        participantCount={game.participants.length}
+      />
+
       {/* Rules Modal */}
       <RulesModal open={rulesOpen} onOpenChange={setRulesOpen} />
 
@@ -320,6 +460,9 @@ export function App() {
         soundEnabled={soundEnabled}
       />
 
+      {/* Google Meet Style Live Floating Reactions Overlay on Host Screen */}
+      <FloatingReactionsOverlay reactions={reactions} showSenderName={true} />
+
       {/* Clean Footer - NO "本地存檔" text */}
       <footer className="border-t border-stone-200/80 bg-white py-4 px-4 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto flex items-center justify-center">
@@ -328,6 +471,25 @@ export function App() {
       </footer>
     </div>
   )
+}
+
+/**
+ * Root Application Router: Role-based view selection
+ */
+export function App() {
+  const [searchParams] = useState(() => new URLSearchParams(window.location.search))
+  const role = searchParams.get('role')
+  const defaultRoom =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('white_elephant_active_game_id') || 'white-elephant-party'
+      : 'white-elephant-party'
+  const roomId = searchParams.get('room') || defaultRoom
+
+  if (role === 'player') {
+    return <PlayerApp roomId={roomId} />
+  }
+
+  return <HostApp />
 }
 
 export default App

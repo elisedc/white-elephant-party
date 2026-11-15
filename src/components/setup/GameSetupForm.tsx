@@ -23,6 +23,7 @@ import {
   Sparkles,
   ClipboardList,
   Gift,
+  QrCode,
 } from 'lucide-react'
 import { GameSettings, Participant } from '@/types/game'
 
@@ -34,6 +35,7 @@ interface GameSetupFormProps {
   onAddBatch: (rawText: string) => void
   onRemoveParticipant: (id: string) => void
   onStartDrawing: () => void
+  onOpenQrCode?: () => void
 }
 
 const SAMPLE_20_PLAYERS = `小明, 小美, 阿杰, 雅婷, 志明, 春嬌, 冠宇, 欣怡, 俊宏, 佩君, 柏翰, 淑芬, 宗翰, 宜婷, 家豪, 佳玲, 承恩, 雅涵, 威廷, 詠晴`
@@ -46,6 +48,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
   onAddBatch,
   onRemoveParticipant,
   onStartDrawing,
+  onOpenQrCode,
 }) => {
   const [nameInput, setNameInput] = useState('')
   const [batchText, setBatchText] = useState('')
@@ -224,6 +227,18 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
                 >
                   <Sparkles className="w-3.5 h-3.5 mr-1 text-amber-600" />
                   快速帶入 20 位玩家
+                </Button>
+              )}
+
+              {onOpenQrCode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={onOpenQrCode}
+                  className="text-xs h-8 border-rose-200 bg-rose-50/70 text-rose-700 hover:bg-rose-100 font-medium"
+                >
+                  <QrCode className="w-3.5 h-3.5 mr-1 text-rose-600" />
+                  掃碼手機加入
                 </Button>
               )}
 

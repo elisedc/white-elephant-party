@@ -33,14 +33,26 @@ export interface GameSettings {
 export interface ActionLog {
   id: string
   timestamp: number
-  type: 'GAME_START' | 'DRAW_ORDER' | 'OPEN_GIFT' | 'STEAL_GIFT' | 'FREEZE_GIFT' | 'FINAL_SWAP' | 'GAME_FINISH'
+  type:
+    | 'GAME_START'
+    | 'DRAW_ORDER'
+    | 'OPEN_GIFT'
+    | 'STEAL_GIFT'
+    | 'FREEZE_GIFT'
+    | 'FINAL_SWAP'
+    | 'GAME_FINISH'
+    | 'PLAYER_JOINED'
+    | 'CHAT_MESSAGE'
+    | 'EMOJI_REACTION'
   actorId?: string
   actorName: string
+  actorAvatarEmoji?: string
   targetParticipantId?: string
   targetParticipantName?: string
   giftId?: string
   giftTitle?: string
   message: string
+  emoji?: string
 }
 
 export interface TurnState {

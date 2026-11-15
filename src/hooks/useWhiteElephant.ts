@@ -176,14 +176,14 @@ export function useWhiteElephant() {
   }, [game, saveState])
 
   // Add Participant
-  const addParticipant = useCallback(async (name: string) => {
+  const addParticipant = useCallback(async (name: string, customAvatarEmoji?: string) => {
     if (!game || !name.trim()) return
     const trimmed = name.trim()
     const newParticipant: Participant = {
       id: `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       name: trimmed,
       order: 0,
-      avatarEmoji: AVATAR_EMOJIS[game.participants.length % AVATAR_EMOJIS.length],
+      avatarEmoji: customAvatarEmoji || AVATAR_EMOJIS[game.participants.length % AVATAR_EMOJIS.length],
     }
     const updatedParticipants = [...game.participants, newParticipant]
     const updated: GameState = {
@@ -686,6 +686,16 @@ export function useWhiteElephant() {
     }
   }, [saveState])
 
+  // Add live chat or emoji log from realtime player
+  const addLiveLog = useCallback(async (log: ActionLog) => {
+    if (!game) return
+    const updated: GameState = {
+      ...game,
+      logs: [log, ...game.logs].slice(0, 80),
+    }
+    await saveState(updated)
+  }, [game, saveState])
+
   return {
     game,
     isLoading,
@@ -708,5 +718,6 @@ export function useWhiteElephant() {
     undoLastAction,
     exportGameJson,
     importGameJson,
+    addLiveLog,
   }
 }

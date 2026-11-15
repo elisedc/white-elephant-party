@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { ActionLog } from '@/types/game'
-import { Gift, Flame, Snowflake, Crown, Shuffle, PartyPopper, Sparkles } from 'lucide-react'
+import { Gift, Flame, Snowflake, Crown, Shuffle, PartyPopper, Sparkles, MessageSquare, Smile, UserPlus } from 'lucide-react'
 
 interface LiveStreamFeedProps {
   logs: ActionLog[]
@@ -32,8 +32,14 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
         return <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
       case 'DRAW_ORDER':
         return <Shuffle className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+      case 'PLAYER_JOINED':
+        return <UserPlus className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
       case 'GAME_FINISH':
         return <PartyPopper className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+      case 'CHAT_MESSAGE':
+        return <MessageSquare className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+      case 'EMOJI_REACTION':
+        return <Smile className="w-3.5 h-3.5 text-amber-500 shrink-0" />
       default:
         return <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
     }
@@ -78,12 +84,18 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
             const isSteal = log.type === 'STEAL_GIFT'
             const isFreeze = log.type === 'FREEZE_GIFT'
             const isOpen = log.type === 'OPEN_GIFT'
+            const isChat = log.type === 'CHAT_MESSAGE'
+            const isEmoji = log.type === 'EMOJI_REACTION'
 
             return (
               <div
                 key={log.id}
                 className={`p-2.5 rounded-2xl border text-xs transition-all ${
-                  isFreeze
+                  isChat
+                    ? 'border-sky-200 bg-sky-50/70 text-sky-950'
+                    : isEmoji
+                    ? 'border-amber-200 bg-amber-50/60 text-amber-950'
+                    : isFreeze
                     ? 'border-cyan-200 bg-cyan-50/70 text-cyan-950'
                     : isSteal
                     ? 'border-amber-200 bg-amber-50/70 text-amber-950'
@@ -95,15 +107,24 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
                 <div className="flex items-center justify-between gap-1 mb-1">
                   <span className="inline-flex items-center gap-1 font-bold text-[11px] truncate">
                     {getLogIcon(log.type)}
-                    <span className="truncate">{log.actorName}</span>
+                    <span className="truncate">
+                      {log.actorAvatarEmoji ? `${log.actorAvatarEmoji} ` : ''}
+                      {log.actorName}
+                    </span>
                   </span>
                   <span className="text-[10px] text-stone-400 font-mono shrink-0">
                     {formatTime(log.timestamp)}
                   </span>
                 </div>
-                <p className="leading-snug text-stone-700 pl-4">
-                  {log.message}
-                </p>
+                {isEmoji ? (
+                  <div className="pl-4 text-2xl py-0.5 animate-bounce">
+                    {log.emoji}
+                  </div>
+                ) : (
+                  <p className="leading-snug text-stone-700 pl-4 font-normal">
+                    {log.message}
+                  </p>
+                )}
               </div>
             )
           })
