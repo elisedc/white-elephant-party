@@ -40,13 +40,13 @@ export const ChristmasHeader: React.FC<ChristmasHeaderProps> = ({
         {/* Action Controls */}
         <div className="flex items-center gap-2">
           <Button
-            variant="outline"
-            size="sm"
+            variant="ghost"
+            size="icon"
             onClick={onOpenRules}
-            className="text-xs h-8 px-2.5 border-stone-200 bg-white hover:bg-stone-50 text-stone-700 shadow-xs"
+            className="h-8 w-8 text-stone-600 hover:text-amber-600 hover:bg-amber-50"
+            title="遊戲規則"
           >
-            <BookOpen className="w-3.5 h-3.5 sm:mr-1.5 text-amber-600" />
-            <span className="hidden sm:inline">遊戲規則</span>
+            <BookOpen className="w-4 h-4" />
           </Button>
 
           <Button
