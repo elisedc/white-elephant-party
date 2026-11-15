@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { Gift as GiftIcon, Flame, Snowflake, User } from 'lucide-react'
 import { Gift, Participant, GameSettings } from '@/types/game'
 
@@ -13,63 +13,21 @@ export const OpenedGiftsGrid: React.FC<OpenedGiftsGridProps> = ({
   participants,
   settings,
 }) => {
-  const [filter, setFilter] = useState<'ALL' | 'ACTIVE' | 'FROZEN'>('ALL')
-
   const getOwner = (ownerId: string) => {
     return participants.find((part) => part.id === ownerId)
   }
 
-  const filteredGifts = gifts.filter((g) => {
-    if (filter === 'ACTIVE') return !g.isFrozen
-    if (filter === 'FROZEN') return g.isFrozen
-    return true
-  })
+  if (gifts.length === 0) {
+    return (
+      <div className="border border-dashed border-stone-200 rounded-xl bg-white/60 p-8 text-center text-stone-400">
+        <p className="text-sm">目前尚無已開禮物。請由第 1 棒開始開箱！</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-3">
-      {/* Filter buttons bar without duplicate title */}
-      <div className="flex items-center justify-end">
-        <div className="flex items-center gap-1.5 bg-stone-100 p-1 rounded-xl border border-stone-200 text-xs">
-          <button
-            onClick={() => setFilter('ALL')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
-              filter === 'ALL'
-                ? 'bg-white text-stone-900 font-bold shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            全部 ({gifts.length})
-          </button>
-          <button
-            onClick={() => setFilter('ACTIVE')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
-              filter === 'ACTIVE'
-                ? 'bg-amber-100 text-amber-900 font-bold border border-amber-300 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            可搶奪 ({gifts.filter((g) => !g.isFrozen).length})
-          </button>
-          <button
-            onClick={() => setFilter('FROZEN')}
-            className={`px-2.5 py-1 rounded-lg transition-all ${
-              filter === 'FROZEN'
-                ? 'bg-cyan-100 text-cyan-900 font-bold border border-cyan-300 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
-            }`}
-          >
-            已冰凍 ({gifts.filter((g) => g.isFrozen).length})
-          </button>
-        </div>
-      </div>
-
-      {gifts.length === 0 ? (
-        <div className="border border-dashed border-stone-200 rounded-xl bg-white/60 p-6 text-center text-stone-400">
-          <p className="text-sm">目前尚無已拆封禮物。請由第 1 棒開始開箱！</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filteredGifts.map((gift) => {
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {gifts.map((gift) => {
             const owner = getOwner(gift.currentOwnerId)
             const remainingSteals = settings.maxSteals - gift.stealCount
 
@@ -138,8 +96,6 @@ export const OpenedGiftsGrid: React.FC<OpenedGiftsGridProps> = ({
               </div>
             )
           })}
-        </div>
-      )}
     </div>
   )
 }
