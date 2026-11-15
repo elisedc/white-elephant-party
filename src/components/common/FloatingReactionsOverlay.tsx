@@ -76,31 +76,37 @@ export const FloatingReactionsOverlay: React.FC<FloatingReactionsOverlayProps> =
       {reactions.map((r) => (
         <div
           key={r.id}
-          className="floating-reaction flex flex-col items-center"
+          className="floating-reaction-container flex flex-col items-center"
           style={
             {
               left: `${r.x}%`,
-              bottom: '24px',
-              '--drift-x': `${r.driftX}px`,
+              bottom: '16px',
               '--float-duration': `${r.duration}s`,
             } as React.CSSProperties
           }
         >
-          {/* Reaction Emoji (Google Meet style bounce & float) */}
-          <span
-            style={{ transform: `scale(${r.scale})` }}
-            className="text-4xl sm:text-5xl drop-shadow-md select-none transform transition-transform"
+          <div
+            className="floating-reaction-inner flex flex-col items-center"
+            style={
+              {
+                '--drift-x': `${r.driftX}px`,
+                '--pop-scale': r.scale,
+              } as React.CSSProperties
+            }
           >
-            {r.emoji}
-          </span>
+            {/* Reaction Emoji */}
+            <span className="text-4xl sm:text-5xl select-none leading-none pointer-events-none">
+              {r.emoji}
+            </span>
 
-          {/* Optional sender pill for recognition */}
-          {showSenderName && r.senderName && (
-            <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/95 text-stone-800 text-[11px] font-semibold border border-stone-200/80 shadow-md backdrop-blur-xs whitespace-nowrap animate-in fade-in zoom-in-75 duration-200">
-              {r.avatarEmoji && <span className="text-xs">{r.avatarEmoji}</span>}
-              <span>{r.senderName}</span>
-            </div>
-          )}
+            {/* Optional sender pill */}
+            {showSenderName && r.senderName && (
+              <div className="mt-1 flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-stone-800 text-[11px] font-semibold border border-stone-200 shadow-xs whitespace-nowrap">
+                {r.avatarEmoji && <span className="text-xs">{r.avatarEmoji}</span>}
+                <span>{r.senderName}</span>
+              </div>
+            )}
+          </div>
         </div>
       ))}
     </div>
