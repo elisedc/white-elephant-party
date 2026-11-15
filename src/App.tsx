@@ -14,7 +14,7 @@ import { OpenedGiftsGrid } from '@/components/game/OpenedGiftsGrid'
 import { ActionHistoryLog } from '@/components/game/ActionHistoryLog'
 import { GameSummary } from '@/components/summary/GameSummary'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown } from 'lucide-react'
+import { Sparkles, Crown, Gift } from 'lucide-react'
 
 export function App() {
   const {
@@ -46,9 +46,9 @@ export function App() {
 
   if (isLoading || !game) {
     return (
-      <div className="min-h-screen bg-[#0c1210] flex flex-col items-center justify-center text-white space-y-3">
-        <div className="text-4xl animate-bounce">🎁</div>
-        <p className="text-stone-300 font-semibold tracking-wide">
+      <div className="min-h-screen bg-[#faf7f2] flex flex-col items-center justify-center text-stone-700 space-y-3">
+        <Gift className="w-8 h-8 text-rose-600 animate-bounce" />
+        <p className="text-stone-600 font-semibold tracking-wide text-sm">
           載入白象交換禮物中...
         </p>
       </div>
@@ -84,7 +84,7 @@ export function App() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col relative selection:bg-rose-500 selection:text-white bg-[#0c1210]">
+    <div className="min-h-screen flex flex-col relative selection:bg-rose-500 selection:text-white bg-[#faf7f2]">
       {/* Falling Snowflakes */}
       <Snowfall enabled={snowEnabled} />
 
@@ -154,25 +154,25 @@ export function App() {
         {/* Phase 3: FINAL_SWAP */}
         {game.phase === 'FINAL_SWAP' && player1 && (
           <div className="space-y-6">
-            <div className="p-6 rounded-2xl border border-amber-500/50 bg-[#1e170f] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="p-6 rounded-2xl border border-amber-300 bg-amber-50/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 uppercase">
-                  <Crown className="w-4 h-4 text-amber-400" />
-                  高潮最終交換權 (The Final Turn)
+                <span className="text-xs font-bold text-amber-800 flex items-center gap-1.5 uppercase">
+                  <Crown className="w-4 h-4 text-amber-700" />
+                  最終交換權 (The Final Turn)
                 </span>
-                <h3 className="text-xl sm:text-2xl font-extrabold text-white">
+                <h3 className="text-xl sm:text-2xl font-extrabold text-stone-900">
                   輪到第 1 棒【{player1.name}】行使最終特權！
                 </h3>
-                <p className="text-xs sm:text-sm text-stone-300">
+                <p className="text-xs sm:text-sm text-stone-600">
                   所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
                 </p>
               </div>
 
               <Button
                 size="lg"
-                variant="gold"
+                variant="default"
                 onClick={() => setFinalSwapModalOpen(true)}
-                className="shrink-0 font-bold"
+                className="shrink-0 font-bold bg-amber-500 hover:bg-amber-600 text-white"
               >
                 <Sparkles className="w-4 h-4 mr-2" />
                 開啟最終決定視窗
@@ -272,10 +272,10 @@ export function App() {
       )}
 
       {/* Clean Footer */}
-      <footer className="border-t border-white/5 bg-[#090e0c] py-4 px-4 text-center text-xs text-stone-500">
+      <footer className="border-t border-stone-200/80 bg-white py-4 px-4 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>白象禮物交換 • 祝大家聖誕快樂！</span>
-          <span className="text-stone-400">本地存檔 (可切換遠端資料庫)</span>
+          <span className="text-stone-400">本地存檔 (支援遠端資料庫切換)</span>
         </div>
       </footer>
     </div>

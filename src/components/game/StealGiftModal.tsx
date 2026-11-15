@@ -7,8 +7,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Flame, Snowflake, ShieldAlert, Sparkles, User, Tag } from 'lucide-react'
+import { Flame, Snowflake, ShieldAlert, User, Tag } from 'lucide-react'
 import { Gift, Participant, GameSettings } from '@/types/game'
 
 interface StealGiftModalProps {
@@ -34,9 +33,6 @@ export const StealGiftModal: React.FC<StealGiftModalProps> = ({
 }) => {
   const getParticipant = (id: string) => participants.find((p) => p.id === id)
 
-  // Gifts eligible to steal:
-  // - Not held by the active participant
-  // - Not the exact gift just stolen from them (prevent immediate steal back)
   const eligibleGifts = gifts.filter(
     (g) => g.currentOwnerId !== activeParticipantId
   )
@@ -53,20 +49,20 @@ export const StealGiftModal: React.FC<StealGiftModalProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto border-orange-700/50">
+      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto border-stone-200 bg-white text-stone-900">
         <DialogHeader>
-          <DialogTitle className="text-xl text-amber-300 flex items-center gap-2">
-            <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
-            挑選掠奪場上的已開禮物！
+          <DialogTitle className="text-xl text-stone-900 flex items-center gap-2">
+            <Flame className="w-5 h-5 text-amber-500 fill-amber-500" />
+            挑選搶奪場上的已開禮物
           </DialogTitle>
-          <DialogDescription className="text-emerald-200/80">
+          <DialogDescription className="text-stone-500 text-xs">
             點選你想搶奪的禮物。請注意：已達到 {settings.maxSteals} 次上限的冰凍禮物無法掠奪。
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 mt-2">
+        <div className="space-y-2.5 mt-2">
           {eligibleGifts.length === 0 ? (
-            <div className="py-8 text-center text-emerald-400/60 rounded-xl border border-dashed border-emerald-800/40">
+            <div className="py-8 text-center text-stone-400 rounded-xl border border-dashed border-stone-200 bg-stone-50">
               目前場上沒有其他可以搶奪的已開禮物。
             </div>
           ) : (
@@ -80,53 +76,47 @@ export const StealGiftModal: React.FC<StealGiftModalProps> = ({
               return (
                 <div
                   key={gift.id}
-                  className={`p-4 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  className={`p-3.5 rounded-xl border transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs ${
                     gift.isFrozen
-                      ? 'border-cyan-500/40 bg-cyan-950/20 opacity-75'
+                      ? 'border-cyan-200 bg-cyan-50/50 opacity-75'
                       : isForbiddenStealBack
-                      ? 'border-red-900/40 bg-red-950/20 opacity-60'
-                      : 'border-emerald-800/40 bg-emerald-950/40 hover:border-amber-500/50 hover:bg-emerald-900/30'
+                      ? 'border-red-200 bg-red-50/50 opacity-60'
+                      : 'border-stone-200 bg-white hover:border-amber-300 hover:bg-amber-50/30'
                   }`}
                 >
-                  <div className="space-y-1.5 flex-1">
+                  <div className="space-y-1 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h4 className="font-extrabold text-base text-white">
+                      <h4 className="font-bold text-sm text-stone-900">
                         {gift.title}
                       </h4>
 
                       {gift.isFrozen ? (
-                        <Badge variant="frozen">
-                          <Snowflake className="w-3 h-3 mr-1" />
+                        <span className="text-[10px] font-semibold text-cyan-700 bg-cyan-100 border border-cyan-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Snowflake className="w-2.5 h-2.5" />
                           已冰凍鎖定 (無法搶奪)
-                        </Badge>
+                        </span>
                       ) : isForbiddenStealBack ? (
-                        <Badge variant="destructive">
-                          <ShieldAlert className="w-3 h-3 mr-1" />
+                        <span className="text-[10px] font-semibold text-red-700 bg-red-100 border border-red-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <ShieldAlert className="w-2.5 h-2.5" />
                           剛被搶走 (禁止立即搶回)
-                        </Badge>
+                        </span>
                       ) : (
-                        <Badge variant="gold">
-                          <Flame className="w-3 h-3 mr-1 text-orange-600" />
+                        <span className="text-[10px] font-semibold text-amber-800 bg-amber-100 border border-amber-200 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <Flame className="w-2.5 h-2.5 text-orange-500 fill-orange-500" />
                           已掠奪 {gift.stealCount}/{settings.maxSteals} 次
-                          {remainingSteals === 1 && ' (再搶 1 次即冰凍!)'}
-                        </Badge>
+                          {remainingSteals === 1 && ' (再搶 1 次即冰凍)'}
+                        </span>
                       )}
                     </div>
 
-                    {gift.description && (
-                      <p className="text-xs text-emerald-200/80">
-                        {gift.description}
-                      </p>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-emerald-300/80 pt-1">
-                      <span className="flex items-center gap-1 font-semibold text-amber-200">
-                        <User className="w-3.5 h-3.5" />
-                        目前持有者：{owner?.name || '未知'} ({owner?.avatarEmoji || '🎁'})
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600 pt-0.5">
+                      <span className="flex items-center gap-1 font-medium text-stone-800">
+                        <User className="w-3.5 h-3.5 text-amber-600" />
+                        持有人：{owner?.name} {owner?.avatarEmoji}
                       </span>
 
                       {gift.tags && gift.tags.length > 0 && (
-                        <span className="flex items-center gap-1">
+                        <span className="flex items-center gap-1 text-stone-400">
                           <Tag className="w-3 h-3" />
                           {gift.tags.join('、')}
                         </span>
@@ -136,20 +126,24 @@ export const StealGiftModal: React.FC<StealGiftModalProps> = ({
 
                   <div className="shrink-0 sm:self-center">
                     <Button
-                      variant={isDisabled ? 'outline' : 'gold'}
+                      variant={isDisabled ? 'outline' : 'default'}
                       size="sm"
                       disabled={isDisabled}
                       onClick={() => handleSelectGift(gift)}
-                      className="w-full sm:w-auto font-bold"
+                      className={`w-full sm:w-auto font-bold text-xs h-8 px-3 ${
+                        isDisabled
+                          ? 'border-stone-200 text-stone-400'
+                          : 'bg-amber-500 hover:bg-amber-600 text-white'
+                      }`}
                     >
                       {gift.isFrozen ? (
                         <>
-                          <Snowflake className="w-4 h-4 mr-1 text-cyan-400" />
+                          <Snowflake className="w-3.5 h-3.5 mr-1 text-cyan-600" />
                           已冰凍
                         </>
                       ) : (
                         <>
-                          <Flame className="w-4 h-4 mr-1 text-red-600" />
+                          <Flame className="w-3.5 h-3.5 mr-1" />
                           搶奪這份禮物
                         </>
                       )}

@@ -328,7 +328,7 @@ export function useWhiteElephant() {
           timestamp: Date.now(),
           type: 'GAME_FINISH',
           actorName: '主辦人',
-          message: `🎉 交換禮物結束！所有人皆已獲得專屬聖誕禮物！`,
+          message: `交換禮物結束！所有人皆已獲得專屬聖誕禮物！`,
         }
         return {
           ...currentState,
@@ -475,7 +475,7 @@ export function useWhiteElephant() {
         targetParticipantName: victim.name,
         giftId: targetGift.id,
         giftTitle: targetGift.title,
-        message: `🔥 ${activeParticipant.name} 搶奪了 ${victim.name} 的【${targetGift.title}】！(已搶奪 ${newStealCount}/${game.settings.maxSteals} 次)`,
+        message: `${activeParticipant.name} 搶奪了 ${victim.name} 的【${targetGift.title}】！(已搶奪 ${newStealCount}/${game.settings.maxSteals} 次)`,
       },
     ]
 
@@ -488,7 +488,7 @@ export function useWhiteElephant() {
         actorName: activeParticipant.name,
         giftId: targetGift.id,
         giftTitle: targetGift.title,
-        message: `❄️【${targetGift.title}】已達到 ${game.settings.maxSteals} 次搶奪上限，正式被【冰凍鎖定】！`,
+        message: `【${targetGift.title}】已達到 ${game.settings.maxSteals} 次搶奪上限，正式被【冰凍鎖定】！`,
       })
     }
 
@@ -536,7 +536,7 @@ export function useWhiteElephant() {
         type: 'FINAL_SWAP',
         actorId: player1.id,
         actorName: player1.name,
-        message: `👑 第 1 棒【${player1.name}】決定保留自己手中的【${currentGift?.title || '禮物'}】，不進行最終交換！`,
+        message: `第 1 棒【${player1.name}】決定保留自己手中的【${currentGift?.title || '禮物'}】，不進行最終交換！`,
       })
     } else {
       // Player 1 swaps with target gift
@@ -572,7 +572,7 @@ export function useWhiteElephant() {
           type: 'FINAL_SWAP',
           actorId: player1.id,
           actorName: player1.name,
-          message: `👑 第 1 棒【${player1.name}】發動最終交換權！用【${p1Gift?.title}】交換了 ${otherPlayer.name} 的【${targetGift.title}】！`,
+          message: `第 1 棒【${player1.name}】發動最終交換權！用【${p1Gift?.title}】交換了 ${otherPlayer.name} 的【${targetGift.title}】！`,
         })
       }
     }
@@ -582,7 +582,7 @@ export function useWhiteElephant() {
       timestamp: Date.now() + 1,
       type: 'GAME_FINISH',
       actorName: '系統',
-      message: `🎉 聖誕白象交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas! 🎄`,
+      message: `交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas!`,
     })
 
     const finalState: GameState = {
