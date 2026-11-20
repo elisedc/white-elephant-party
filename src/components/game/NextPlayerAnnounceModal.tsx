@@ -80,7 +80,7 @@ export const NextPlayerAnnounceModal: React.FC<NextPlayerAnnounceModalProps> = (
             autoFocus
           >
             <Play className="w-4 h-4 mr-2 fill-white" />
-            我準備好了，開始行動！
+            準備好了，開始行動！
           </Button>
         </DialogFooter>
       </DialogContent>

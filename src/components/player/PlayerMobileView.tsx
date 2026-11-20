@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react'
-import { GameState, Participant, Gift } from '@/types/game'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { GameState, Participant, Gift, ActionLog } from '@/types/game'
 import { RoomRealtimeBridge } from '@/services/realtime/channel'
 import { RealtimeMessage } from '@/services/realtime/types'
+import { groupConsecutiveLogs } from '@/lib/logUtils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,6 +17,11 @@ import {
   Smile,
   Crown,
   ArrowLeft,
+  ArrowRightLeft,
+  Radio,
+  Shuffle,
+  PartyPopper,
+  MessageSquare,
 } from 'lucide-react'
 import {
   Dialog,
@@ -85,8 +91,52 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   const { reactions, triggerReaction } = useFloatingReactions()
 
   // Modal / Dialog state
-  const [showParticipantsDialog, setShowParticipantsDialog] = useState(false)
+  const [showLogsDialog, setShowLogsDialog] = useState(false)
+  const [logsDialogTab, setLogsDialogTab] = useState<'logs' | 'players'>('logs')
+  const logsScrollRef = useRef<HTMLDivElement>(null)
   const [acknowledgedTurn, setAcknowledgedTurn] = useState(false)
+
+  // Collapse consecutive emoji logs
+  const displayLogs = useMemo(
+    () => groupConsecutiveLogs(gameState?.logs || []),
+    [gameState?.logs]
+  )
+
+  useEffect(() => {
+    if (showLogsDialog && logsDialogTab === 'logs' && logsScrollRef.current) {
+      logsScrollRef.current.scrollTop = logsScrollRef.current.scrollHeight
+    }
+  }, [showLogsDialog, logsDialogTab, displayLogs.length])
+
+  const getLogIcon = (type: ActionLog['type']) => {
+    switch (type) {
+      case 'OPEN_GIFT':
+        return <GiftIcon className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+      case 'STEAL_GIFT':
+        return <Flame className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+      case 'FREEZE_GIFT':
+        return <Snowflake className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+      case 'FINAL_SWAP':
+        return <Crown className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+      case 'DRAW_ORDER':
+        return <Shuffle className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+      case 'PLAYER_JOINED':
+        return <Users className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+      case 'GAME_FINISH':
+        return <PartyPopper className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+      case 'CHAT_MESSAGE':
+        return <MessageSquare className="w-3.5 h-3.5 text-sky-600 shrink-0" />
+      case 'EMOJI_REACTION':
+        return <Smile className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+      default:
+        return <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+    }
+  }
+
+  const formatTime = (ts: number) => {
+    const d = new Date(ts)
+    return d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })
+  }
 
   // Send request for latest game state and announce presence on mount/reconnect
   useEffect(() => {
@@ -375,11 +425,14 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setShowParticipantsDialog(true)}
-            className="text-xs h-7 px-2.5 border-stone-200 text-stone-700 bg-white hover:bg-stone-50 rounded-lg shadow-2xs font-semibold flex items-center gap-1"
+            onClick={() => {
+              setLogsDialogTab('logs')
+              setShowLogsDialog(true)
+            }}
+            className="text-xs h-7 px-2.5 border-stone-200 text-stone-700 bg-white hover:bg-stone-50 rounded-lg shadow-2xs font-semibold flex items-center gap-1.5"
           >
-            <Users className="w-3.5 h-3.5 text-stone-600" />
-            <span>玩家名單 ({gameState?.participants.length || 0})</span>
+            <Radio className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+            <span>即時動態紀錄</span>
           </Button>
 
           <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="即時連線中" />
@@ -521,7 +574,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                   <p className="text-stone-500 text-xs">
                     {currentParticipant?.hasPlayed
                       ? '你的禮物剛剛被搶走了，等待反擊！'
-                      : '尚未輪到你拆開禮物'}
+                      : '你還沒有打開禮物！'}
                   </p>
                 )}
               </div>
@@ -600,20 +653,41 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
         )}
 
         {/* PHASE: FINAL_SWAP */}
-        {gameState?.phase === 'FINAL_SWAP' && (
-          <div className="bg-white p-5 rounded-3xl border border-amber-300 bg-amber-50/70 text-center space-y-2">
-            <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
-              <Crown className="w-3.5 h-3.5 text-amber-600" />
-              最終交換權
-            </span>
-            <h3 className="text-xl font-bold text-stone-900">
-              輪到第 1 棒行使特權！
-            </h3>
-            <p className="text-xs text-stone-600">
-              全體禮物已拆封完畢，第 1 棒正在決定是否與場上禮物互換！請看大螢幕！
-            </p>
-          </div>
-        )}
+        {gameState?.phase === 'FINAL_SWAP' && (() => {
+          const activeSwapPlayer =
+            gameState.participants.find((p) => p.id === gameState.turnState.activeParticipantId) ||
+            gameState.participants.find((p) => p.order === 1)
+          const isMe = activeSwapPlayer?.id === myPlayer?.id
+          const isPlayer1 = activeSwapPlayer?.order === 1
+
+          return (
+            <div
+              className={`p-5 rounded-3xl border text-center space-y-2 ${isMe
+                  ? 'border-amber-400 bg-amber-50/90 ring-2 ring-amber-300'
+                  : 'border-amber-300 bg-amber-50/70'
+                }`}
+            >
+              <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
+                {isPlayer1 ? (
+                  <Crown className="w-3.5 h-3.5 text-amber-600" />
+                ) : (
+                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-600" />
+                )}
+                {isPlayer1 ? '最終交換權' : '被換禮反擊特權'}
+              </span>
+              <h3 className="text-xl font-bold text-stone-900">
+                {isMe ? '輪到你做決定了！' : `輪到【${activeSwapPlayer?.name}】行使特權！`}
+              </h3>
+              <p className="text-xs text-stone-600">
+                {isMe
+                  ? '你的禮物被交換或擁有特權，請看大螢幕選擇保留或交換其他禮物！'
+                  : isPlayer1
+                    ? '全體禮物已拆封完畢，第 1 棒正在決定是否與場上禮物互換！請看大螢幕！'
+                    : `【${activeSwapPlayer?.name}】的禮物被換走了，正在決定是否與場上禮物互換！請看大螢幕！`}
+              </p>
+            </div>
+          )
+        })()}
 
         {/* PHASE: FINISHED */}
         {gameState?.phase === 'FINISHED' && (
@@ -696,106 +770,210 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Participants Roster Dialog */}
-      <Dialog open={showParticipantsDialog} onOpenChange={setShowParticipantsDialog}>
-        <DialogContent className="max-w-xs sm:max-w-sm p-5 bg-white border-stone-200 rounded-3xl text-stone-900 max-h-[85vh] flex flex-col">
+      {/* Logs & Participants Dialog */}
+      <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
+        <DialogContent className="max-w-xs sm:max-w-sm p-4 sm:p-5 bg-white border-stone-200 rounded-3xl text-stone-900 max-h-[85vh] flex flex-col">
           <DialogHeader className="text-left pb-2 border-b border-stone-100 shrink-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Users className="w-4 h-4 text-rose-600" />
+                <Radio className="w-4 h-4 text-rose-600 animate-pulse" />
                 <DialogTitle className="text-base font-extrabold text-stone-900">
-                  玩家名單與順序
+                  即時動態紀錄
                 </DialogTitle>
               </div>
-              <span className="text-xs font-mono font-bold text-stone-600 px-2 py-0.5 rounded-full bg-stone-100">
-                共 {gameState?.participants.length || 0} 位
+              <span className="text-[11px] font-mono text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
+                {displayLogs.length} 則
               </span>
             </div>
-            <DialogDescription className="text-xs text-stone-500 pt-1">
-              {gameState?.phase === 'SETUP'
-                ? '等待抽籤中，主持人開始抽籤後將顯示出場序'
-                : '出場順序如下，輪到自己時手機會發出提醒！'}
+            <DialogDescription className="text-xs text-stone-500 pt-0.5">
+              現場即時進度與玩家互動快訊
             </DialogDescription>
+
+            {/* Segment switch */}
+            <div className="flex rounded-xl bg-stone-100 p-1 mt-2 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setLogsDialogTab('logs')}
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${
+                  logsDialogTab === 'logs'
+                    ? 'bg-white text-stone-900 shadow-2xs font-bold'
+                    : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                即時動態
+              </button>
+              <button
+                type="button"
+                onClick={() => setLogsDialogTab('players')}
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${
+                  logsDialogTab === 'players'
+                    ? 'bg-white text-stone-900 shadow-2xs font-bold'
+                    : 'text-stone-500 hover:text-stone-800'
+                }`}
+              >
+                玩家名單 ({gameState?.participants.length || 0})
+              </button>
+            </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
-            {(() => {
-              const participants = gameState?.participants || []
-              // If order is drawn, sort by order; otherwise by join order
-              const sorted = [...participants].sort((a, b) => {
-                if (a.order && b.order) return a.order - b.order
-                if (a.order) return -1
-                if (b.order) return 1
-                return 0
-              })
+          {logsDialogTab === 'logs' ? (
+            <div
+              ref={logsScrollRef}
+              className="flex-1 overflow-y-auto space-y-2 py-2 pr-1 scroll-smooth"
+            >
+              {displayLogs.length === 0 ? (
+                <div className="text-center py-8 text-xs text-stone-400">
+                  目前尚無動態紀錄，等待大家開始互動！
+                </div>
+              ) : (
+                displayLogs.map((log) => {
+                  const isSteal = log.type === 'STEAL_GIFT'
+                  const isFreeze = log.type === 'FREEZE_GIFT'
+                  const isOpen = log.type === 'OPEN_GIFT'
+                  const isChat = log.type === 'CHAT_MESSAGE'
+                  const isEmoji = log.type === 'EMOJI_REACTION'
+                  const displayEmojis = log.emojis || (log.emoji ? [log.emoji] : [])
 
-              if (sorted.length === 0) {
-                return (
-                  <div className="text-center py-6 text-xs text-stone-400">
-                    目前尚未有玩家入座
-                  </div>
-                )
-              }
-
-              return sorted.map((p) => {
-                const isMe = p.id === myPlayer.id || p.name.trim().toLowerCase() === myPlayer.name.trim().toLowerCase()
-                const isActive = gameState?.phase === 'PLAYING' && gameState?.turnState.activeParticipantId === p.id
-
-                return (
-                  <div
-                    key={p.id}
-                    className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all ${isMe
-                      ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500/25 shadow-xs'
-                      : isActive
-                        ? 'bg-amber-50/80 border-amber-300'
-                        : 'bg-stone-50 border-stone-200'
+                  return (
+                    <div
+                      key={log.id}
+                      className={`p-2.5 rounded-2xl border text-xs transition-all ${
+                        isChat
+                          ? 'border-sky-200 bg-sky-50/70 text-sky-950'
+                          : isEmoji
+                          ? 'border-amber-200 bg-amber-50/60 text-amber-950'
+                          : isFreeze
+                          ? 'border-cyan-200 bg-cyan-50/70 text-cyan-950'
+                          : isSteal
+                          ? 'border-amber-200 bg-amber-50/70 text-amber-950'
+                          : isOpen
+                          ? 'border-rose-200 bg-rose-50/50 text-rose-950'
+                          : 'border-stone-200/80 bg-stone-50/60 text-stone-800'
                       }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className="text-xl shrink-0">{p.avatarEmoji || '🎅'}</span>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-bold truncate ${isMe ? 'text-rose-900 font-extrabold' : 'text-stone-900'}`}>
-                            {p.name}
+                    >
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <span className="inline-flex items-center gap-1 font-bold text-[11px] truncate">
+                          {getLogIcon(log.type)}
+                          <span className="truncate">
+                            {log.actorAvatarEmoji ? `${log.actorAvatarEmoji} ` : ''}
+                            {log.actorName}
                           </span>
-                          {isMe && (
-                            <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-rose-600 text-white shrink-0">
-                              你
-                            </span>
-                          )}
-                          {isActive && (
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500 text-white shrink-0">
-                              行動中
-                            </span>
-                          )}
-                        </div>
-                        {p.joinedVia === 'online' ? (
-                          <span className="text-[10px] text-stone-400">手機連線</span>
-                        ) : null}
+                        </span>
+                        <span className="text-[10px] text-stone-400 font-mono shrink-0">
+                          {formatTime(log.timestamp)}
+                        </span>
                       </div>
-                    </div>
-
-                    <div className="text-right shrink-0 font-mono">
-                      {p.order > 0 ? (
-                        <span
-                          className={`inline-block font-extrabold px-2.5 py-1 rounded-xl text-xs ${isMe
-                            ? 'bg-rose-600 text-white shadow-2xs'
-                            : 'bg-white border border-stone-200 text-stone-800'
-                            }`}
-                        >
-                          第 {p.order} 棒
-                        </span>
+                      {isEmoji ? (
+                        <div className="pl-4 py-0.5 flex items-center gap-1.5 flex-wrap">
+                          {displayEmojis.map((e, idx) => (
+                            <span
+                              key={idx}
+                              className="text-2xl inline-block animate-bounce"
+                              style={{ animationDelay: `${idx * 100}ms` }}
+                            >
+                              {e}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-[10px] text-stone-400 px-2 py-1">
-                          待抽籤
-                        </span>
+                        <p className="leading-snug text-stone-700 pl-4 font-normal">
+                          {log.message}
+                        </p>
                       )}
                     </div>
-                  </div>
-                )
-              })
-            })()}
-          </div>
+                  )
+                })
+              )}
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
+              {(() => {
+                const participants = gameState?.participants || []
+                const sorted = [...participants].sort((a, b) => {
+                  if (a.order && b.order) return a.order - b.order
+                  if (a.order) return -1
+                  if (b.order) return 1
+                  return 0
+                })
+
+                if (sorted.length === 0) {
+                  return (
+                    <div className="text-center py-6 text-xs text-stone-400">
+                      目前尚未有玩家入座
+                    </div>
+                  )
+                }
+
+                return sorted.map((p) => {
+                  const isMe =
+                    p.id === myPlayer.id ||
+                    p.name.trim().toLowerCase() === myPlayer.name.trim().toLowerCase()
+                  const isActive =
+                    gameState?.phase === 'PLAYING' &&
+                    gameState?.turnState.activeParticipantId === p.id
+
+                  return (
+                    <div
+                      key={p.id}
+                      className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all ${
+                        isMe
+                          ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500/25 shadow-xs'
+                          : isActive
+                          ? 'bg-amber-50/80 border-amber-300'
+                          : 'bg-stone-50 border-stone-200'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-xl shrink-0">{p.avatarEmoji || '🎅'}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={`font-bold truncate ${
+                                isMe ? 'text-rose-900 font-extrabold' : 'text-stone-900'
+                              }`}
+                            >
+                              {p.name}
+                            </span>
+                            {isMe && (
+                              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-rose-600 text-white shrink-0">
+                                你
+                              </span>
+                            )}
+                            {isActive && (
+                              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500 text-white shrink-0">
+                                行動中
+                              </span>
+                            )}
+                          </div>
+                          {p.joinedVia === 'online' ? (
+                            <span className="text-[10px] text-stone-400">手機連線</span>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0 font-mono">
+                        {p.order > 0 ? (
+                          <span
+                            className={`inline-block font-extrabold px-2.5 py-1 rounded-xl text-xs ${
+                              isMe
+                                ? 'bg-rose-600 text-white shadow-2xs'
+                                : 'bg-white border border-stone-200 text-stone-800'
+                            }`}
+                          >
+                            第 {p.order} 棒
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-stone-400 px-2 py-1">
+                            待抽籤
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })
+              })()}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

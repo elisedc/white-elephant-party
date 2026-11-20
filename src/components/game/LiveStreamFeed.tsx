@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useMemo } from 'react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { ActionLog } from '@/types/game'
+import { groupConsecutiveLogs } from '@/lib/logUtils'
 import { Gift, Flame, Snowflake, Crown, Shuffle, PartyPopper, Sparkles, MessageSquare, Smile, UserPlus } from 'lucide-react'
 
 interface LiveStreamFeedProps {
@@ -10,15 +11,14 @@ interface LiveStreamFeedProps {
 export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Auto-scroll to top or bottom when new logs arrive (logs are usually prepended or appended)
-  // Let's reverse logs so earliest is at top and newest is at bottom like a real chat feed!
-  const chronologicalLogs = [...logs].reverse()
+  // Collapse consecutive emoji logs from the same person
+  const displayLogs = useMemo(() => groupConsecutiveLogs(logs), [logs])
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [logs.length])
+  }, [displayLogs.length])
 
   const getLogIcon = (type: ActionLog['type']) => {
     switch (type) {
@@ -75,17 +75,18 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
         ref={scrollRef}
         className="p-3.5 flex-1 min-h-0 overflow-y-auto space-y-2.5 scroll-smooth"
       >
-        {chronologicalLogs.length === 0 ? (
+        {displayLogs.length === 0 ? (
           <div className="h-full flex items-center justify-center text-xs text-stone-400 py-12">
             等待第一位玩家行動中...
           </div>
         ) : (
-          chronologicalLogs.map((log) => {
+          displayLogs.map((log) => {
             const isSteal = log.type === 'STEAL_GIFT'
             const isFreeze = log.type === 'FREEZE_GIFT'
             const isOpen = log.type === 'OPEN_GIFT'
             const isChat = log.type === 'CHAT_MESSAGE'
             const isEmoji = log.type === 'EMOJI_REACTION'
+            const displayEmojis = log.emojis || (log.emoji ? [log.emoji] : [])
 
             return (
               <div
@@ -117,8 +118,16 @@ export const LiveStreamFeed: React.FC<LiveStreamFeedProps> = ({ logs }) => {
                   </span>
                 </div>
                 {isEmoji ? (
-                  <div className="pl-4 text-2xl py-0.5 animate-bounce">
-                    {log.emoji}
+                  <div className="pl-4 py-0.5 flex items-center gap-1.5 flex-wrap">
+                    {displayEmojis.map((e, idx) => (
+                      <span
+                        key={idx}
+                        className="text-2xl inline-block animate-bounce"
+                        style={{ animationDelay: `${idx * 100}ms` }}
+                      >
+                        {e}
+                      </span>
+                    ))}
                   </div>
                 ) : (
                   <p className="leading-snug text-stone-700 pl-4 font-normal">

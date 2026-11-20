@@ -628,92 +628,200 @@ export function useWhiteElephant() {
     }
   }, [game, saveState, soundEnabled])
 
-  // Final swap action by Player 1
+  // Final swap action (Player 1 or chained swap victims)
   const executeFinalSwap = useCallback(async (swapWithGiftId: string | null) => {
     if (!game || game.phase !== 'FINAL_SWAP') return
-    const player1 = game.participants.find((p) => p.order === 1)
-    if (!player1) return
+
+    const activeParticipant =
+      game.participants.find((p) => p.id === game.turnState.activeParticipantId) ||
+      game.participants.find((p) => p.order === 1)
+    if (!activeParticipant) return
+
+    const activeGift = game.gifts.find(
+      (g) => g.currentOwnerId === activeParticipant.id || g.id === activeParticipant.giftId
+    )
 
     let nextGifts = [...game.gifts]
     let nextParticipants = [...game.participants]
     const logsToAdd: ActionLog[] = []
+    const isPlayer1 = activeParticipant.order === 1
 
     if (!swapWithGiftId) {
-      // Player 1 decided to KEEP their current gift
-      const currentGift = game.gifts.find((g) => g.id === player1.giftId)
+      // Active player decided to KEEP their current gift
       logsToAdd.push({
         id: `log_${Date.now()}_keep`,
         timestamp: Date.now(),
         type: 'FINAL_SWAP',
-        actorId: player1.id,
-        actorName: player1.name,
-        message: `第 1 棒【${player1.name}】決定保留自己手中的【${currentGift?.title || '禮物'}】，不進行最終交換！`,
+        actorId: activeParticipant.id,
+        actorName: activeParticipant.name,
+        message: isPlayer1
+          ? `第 1 棒【${activeParticipant.name}】決定保留自己手中的【${activeGift?.title || '禮物'}】，不進行最終交換！`
+          : `【${activeParticipant.name}】決定保留自己手中的【${activeGift?.title || '禮物'}】，不再繼續交換！`,
       })
-    } else {
-      // Player 1 swaps with target gift
-      const p1Gift = game.gifts.find((g) => g.id === player1.giftId)
-      const targetGift = game.gifts.find((g) => g.id === swapWithGiftId)
-      const otherPlayer = game.participants.find((p) => p.id === targetGift?.currentOwnerId)
 
-      if (targetGift && otherPlayer) {
-        // Swap gifts
-        nextGifts = nextGifts.map((g) => {
-          if (g.id === p1Gift?.id) {
-            return { ...g, currentOwnerId: otherPlayer.id }
-          }
-          if (g.id === targetGift.id) {
-            return { ...g, currentOwnerId: player1.id }
-          }
-          return g
-        })
+      logsToAdd.unshift({
+        id: `log_${Date.now()}_finish`,
+        timestamp: Date.now() + 1,
+        type: 'GAME_FINISH',
+        actorName: '系統',
+        message: `交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas!`,
+      })
 
-        nextParticipants = nextParticipants.map((p) => {
-          if (p.id === player1.id) {
-            return { ...p, giftId: targetGift.id }
-          }
-          if (p.id === otherPlayer.id) {
-            return { ...p, giftId: p1Gift?.id }
-          }
-          return p
-        })
-
-        logsToAdd.push({
-          id: `log_${Date.now()}_swap`,
-          timestamp: Date.now(),
-          type: 'FINAL_SWAP',
-          actorId: player1.id,
-          actorName: player1.name,
-          message: `第 1 棒【${player1.name}】發動最終交換權！用【${p1Gift?.title}】交換了 ${otherPlayer.name} 的【${targetGift.title}】！`,
-        })
+      const finalState: GameState = {
+        ...game,
+        phase: 'FINISHED',
+        gifts: nextGifts,
+        participants: nextParticipants,
+        logs: [...logsToAdd, ...game.logs],
+        historyStack: pushHistorySnapshot(game),
       }
+
+      await saveState(finalState)
+
+      if (soundEnabled) sounds.playVictory()
+      confetti({
+        particleCount: 150,
+        spread: 90,
+        origin: { y: 0.5 },
+        colors: ['#e11d48', '#22c55e', '#fbbf24', '#38bdf8', '#ffffff'],
+      })
+      return
     }
 
-    logsToAdd.unshift({
-      id: `log_${Date.now()}_finish`,
-      timestamp: Date.now() + 1,
-      type: 'GAME_FINISH',
-      actorName: '系統',
-      message: `交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas!`,
+    // Active player swaps with target gift
+    const targetGift = game.gifts.find((g) => g.id === swapWithGiftId)
+    const victim = game.participants.find((p) => p.id === targetGift?.currentOwnerId)
+
+    if (!targetGift || !victim) return
+
+    const newStealCount = (targetGift.stealCount || 0) + 1
+    const shouldFreeze = newStealCount >= game.settings.maxSteals
+
+    // Swap gifts: targetGift goes to activeParticipant, activeGift goes to victim
+    nextGifts = nextGifts.map((g) => {
+      if (activeGift && g.id === activeGift.id) {
+        return { ...g, currentOwnerId: victim.id }
+      }
+      if (g.id === targetGift.id) {
+        return {
+          ...g,
+          currentOwnerId: activeParticipant.id,
+          stealCount: newStealCount,
+          isFrozen: shouldFreeze,
+        }
+      }
+      return g
     })
 
-    const finalState: GameState = {
-      ...game,
-      phase: 'FINISHED',
-      gifts: nextGifts,
-      participants: nextParticipants,
-      logs: [...logsToAdd, ...game.logs],
-      historyStack: pushHistorySnapshot(game),
+    nextParticipants = nextParticipants.map((p) => {
+      if (p.id === activeParticipant.id) {
+        return { ...p, giftId: targetGift.id }
+      }
+      if (p.id === victim.id) {
+        return { ...p, giftId: activeGift?.id }
+      }
+      return p
+    })
+
+    logsToAdd.push({
+      id: `log_${Date.now()}_swap`,
+      timestamp: Date.now(),
+      type: 'FINAL_SWAP',
+      actorId: activeParticipant.id,
+      actorName: activeParticipant.name,
+      targetParticipantId: victim.id,
+      targetParticipantName: victim.name,
+      giftId: targetGift.id,
+      giftTitle: targetGift.title,
+      message: isPlayer1
+        ? `第 1 棒【${activeParticipant.name}】發動最終交換權！用【${activeGift?.title}】交換了 ${victim.name} 的【${targetGift.title}】！`
+        : `【${activeParticipant.name}】發動換禮特權！用【${activeGift?.title}】交換了 ${victim.name} 的【${targetGift.title}】！`,
+    })
+
+    if (shouldFreeze) {
+      logsToAdd.unshift({
+        id: `log_${Date.now()}_freeze`,
+        timestamp: Date.now() + 1,
+        type: 'FREEZE_GIFT',
+        actorId: activeParticipant.id,
+        actorName: activeParticipant.name,
+        giftId: targetGift.id,
+        giftTitle: targetGift.title,
+        message: `【${targetGift.title}】已達到 ${game.settings.maxSteals} 次搶奪上限，正式被【冰凍鎖定】！`,
+      })
     }
 
-    await saveState(finalState)
-
-    if (soundEnabled) sounds.playVictory()
-    confetti({
-      particleCount: 150,
-      spread: 90,
-      origin: { y: 0.5 },
-      colors: ['#e11d48', '#22c55e', '#fbbf24', '#38bdf8', '#ffffff'],
+    // Check if victim has any swappable gifts available
+    const swappableGifts = nextGifts.filter((g) => {
+      if (g.currentOwnerId === victim.id) return false
+      if (g.isFrozen) return false
+      if (!game.settings.allowImmediateStealBack && g.id === targetGift.id) return false
+      return true
     })
+
+    if (swappableGifts.length > 0) {
+      // Victim gets the turn to swap or keep!
+      logsToAdd.unshift({
+        id: `log_${Date.now()}_victim_turn`,
+        timestamp: Date.now() + 2,
+        type: 'FINAL_SWAP',
+        actorId: victim.id,
+        actorName: victim.name,
+        message: `【${victim.name}】的禮物被換走了！獲得換禮特權，可選擇保留手中的新禮物或與其他人交換！`,
+      })
+
+      const nextState: GameState = {
+        ...game,
+        phase: 'FINAL_SWAP',
+        gifts: nextGifts,
+        participants: nextParticipants,
+        logs: [...logsToAdd, ...game.logs],
+        turnState: {
+          ...game.turnState,
+          activeParticipantId: victim.id,
+          isStealReaction: true,
+          lastStolenGiftId: targetGift.id,
+          lastVictimId: victim.id,
+          turnStepCount: game.turnState.turnStepCount + 1,
+        },
+        historyStack: pushHistorySnapshot(game),
+      }
+
+      await saveState(nextState)
+
+      if (soundEnabled) {
+        if (shouldFreeze) sounds.playFreeze()
+        else sounds.playSteal()
+      }
+    } else {
+      // No swappable gifts remain for victim; game ends
+      logsToAdd.unshift({
+        id: `log_${Date.now()}_finish`,
+        timestamp: Date.now() + 2,
+        type: 'GAME_FINISH',
+        actorName: '系統',
+        message: `場上已無其他可更換的禮物，交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas!`,
+      })
+
+      const finalState: GameState = {
+        ...game,
+        phase: 'FINISHED',
+        gifts: nextGifts,
+        participants: nextParticipants,
+        logs: [...logsToAdd, ...game.logs],
+        historyStack: pushHistorySnapshot(game),
+      }
+
+      await saveState(finalState)
+
+      if (soundEnabled) sounds.playVictory()
+      confetti({
+        particleCount: 150,
+        spread: 90,
+        origin: { y: 0.5 },
+        colors: ['#e11d48', '#22c55e', '#fbbf24', '#38bdf8', '#ffffff'],
+      })
+    }
   }, [game, saveState, soundEnabled])
 
   // Undo last action

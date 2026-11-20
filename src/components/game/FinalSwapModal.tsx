@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -14,27 +14,42 @@ import { Gift, Participant } from '@/types/game'
 interface FinalSwapModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  player1: Participant
-  player1Gift?: Gift
+  activeParticipant: Participant
+  activeGift?: Gift
   gifts: Gift[]
   participants: Participant[]
+  lastStolenGiftId?: string
+  allowImmediateStealBack?: boolean
   onExecuteSwap: (targetGiftId: string | null) => void
 }
 
 export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
   open,
   onOpenChange,
-  player1,
-  player1Gift,
+  activeParticipant,
+  activeGift,
   gifts,
   participants,
+  lastStolenGiftId,
+  allowImmediateStealBack = false,
   onExecuteSwap,
 }) => {
   const [selectedGiftId, setSelectedGiftId] = useState<string | null>(null)
 
-  const eligibleGifts = gifts.filter(
-    (g) => g.id !== player1Gift?.id && !g.isFrozen
-  )
+  // Reset selection whenever active participant changes or modal opens
+  useEffect(() => {
+    setSelectedGiftId(null)
+  }, [activeParticipant?.id, open])
+
+  const isPlayer1 = activeParticipant.order === 1
+
+  const eligibleGifts = gifts.filter((g) => {
+    if (g.id === activeGift?.id) return false
+    if (g.currentOwnerId === activeParticipant.id) return false
+    if (g.isFrozen) return false
+    if (!allowImmediateStealBack && lastStolenGiftId && g.id === lastStolenGiftId) return false
+    return true
+  })
 
   const handleKeep = () => {
     onExecuteSwap(null)
@@ -57,34 +72,40 @@ export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
         <DialogHeader>
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
-              <Crown className="w-5 h-5 text-amber-700" />
+              {isPlayer1 ? (
+                <Crown className="w-5 h-5 text-amber-700" />
+              ) : (
+                <ArrowRightLeft className="w-5 h-5 text-amber-700" />
+              )}
             </div>
             <div>
               <DialogTitle className="text-lg font-bold text-stone-900">
-                第 1 棒最終逆轉特權
+                {isPlayer1 ? '第 1 棒最終逆轉特權' : `【${activeParticipant.name}】被換禮反擊特權`}
               </DialogTitle>
               <DialogDescription className="text-stone-500 text-xs">
-                恭喜所有人都已拆開禮物！第 1 棒【{player1.name}】擁有最終交換權！
+                {isPlayer1
+                  ? `恭喜所有人都已拆開禮物！第 1 棒【${activeParticipant.name}】擁有最終交換權！`
+                  : `【${activeParticipant.name}】的禮物剛剛被換走了！你可以選擇保留新拿到的禮物，或換取其他禮物！`}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        {/* Player 1's Current Gift */}
+        {/* Current Gift */}
         <div className="p-3.5 rounded-xl border border-stone-200 bg-stone-50 space-y-1">
           <span className="text-xs font-semibold text-stone-600">
-            {player1.name} 目前持有的禮物：
+            {activeParticipant.name} 目前持有的禮物：
           </span>
           <h4 className="text-base font-bold text-stone-900 flex items-center gap-1.5">
             <GiftIcon className="w-4 h-4 text-rose-600" />
-            {player1Gift?.title || '未持有禮物'}
+            {activeGift?.title || '未持有禮物'}
           </h4>
         </div>
 
         {/* Options */}
         <div className="space-y-2.5 pt-1">
           <p className="text-xs font-bold text-stone-700">
-            請選擇你的最終決定：
+            請選擇你的決定：
           </p>
 
           <div
@@ -101,7 +122,9 @@ export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
                 保留自己目前的禮物（不換）
               </h5>
               <p className="text-xs text-stone-500 mt-0.5">
-                我覺得現在拿到的禮物已經很棒了，直接結束遊戲
+                {isPlayer1
+                  ? '我覺得現在拿到的禮物已經很棒了，直接結束遊戲'
+                  : '滿意這份新禮物，不再繼續更換並結束回合'}
               </p>
             </div>
             <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${
@@ -117,7 +140,7 @@ export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
 
           {eligibleGifts.length === 0 ? (
             <p className="text-xs text-stone-400 p-3 rounded-lg border border-dashed border-stone-200 bg-stone-50">
-              場上其他禮物皆已被冰凍鎖定，無法進行交換。
+              場上其他禮物皆已被冰凍鎖定或不可換回，無法進行交換。
             </p>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -161,7 +184,7 @@ export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
               className="w-full sm:w-auto font-bold bg-amber-500 hover:bg-amber-600 text-white"
             >
               <ArrowRightLeft className="w-4 h-4 mr-2" />
-              確認發動最終互換
+              確認互換禮物
             </Button>
           ) : (
             <Button
@@ -170,7 +193,7 @@ export const FinalSwapModal: React.FC<FinalSwapModalProps> = ({
               className="w-full sm:w-auto font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              保留目前的禮物並結束遊戲
+              {isPlayer1 ? '保留目前的禮物並結束遊戲' : '保留目前的禮物'}
             </Button>
           )}
         </DialogFooter>

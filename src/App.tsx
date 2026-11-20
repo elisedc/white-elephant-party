@@ -21,7 +21,7 @@ import { LandingJoinScreen } from '@/components/home/LandingJoinScreen'
 import { RoomRealtimeBridge } from '@/services/realtime/channel'
 import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown, Gift, Users } from 'lucide-react'
+import { Sparkles, Crown, Gift, Users, ArrowRightLeft } from 'lucide-react'
 import { GameState } from '@/types/game'
 
 /**
@@ -185,12 +185,13 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
           bridge.send('SYNC_STATE', { gameState: currentGame })
         }
       } else if (msg.type === 'EMOJI_REACTION') {
-        const { senderName, avatarEmoji, emoji } = msg.payload
+        const { senderId, senderName, avatarEmoji, emoji } = msg.payload
         triggerReaction(emoji, senderName, avatarEmoji)
         addLiveLog({
           id: `emoji_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
           timestamp: Date.now(),
           type: 'EMOJI_REACTION',
+          actorId: senderId,
           actorName: senderName,
           actorAvatarEmoji: avatarEmoji,
           emoji,
@@ -221,6 +222,13 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
     }
   }, [game?.phase, game?.turnState?.currentOrderNumber, game?.turnState?.isStealReaction, announcedTurn])
 
+  // Automatically open final swap modal when in FINAL_SWAP and active participant updates
+  useEffect(() => {
+    if (game?.phase === 'FINAL_SWAP') {
+      setFinalSwapModalOpen(true)
+    }
+  }, [game?.phase, game?.turnState?.activeParticipantId])
+
   if (isLoading || !game) {
     return (
       <div className="min-h-screen bg-[#faf7f2] flex flex-col items-center justify-center text-stone-700 space-y-3">
@@ -237,6 +245,11 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
   )
   const player1 = game.participants.find((p) => p.order === 1)
   const player1Gift = game.gifts.find((g) => g.id === player1?.giftId)
+  const activeSwapParticipant =
+    game.participants.find((p) => p.id === game.turnState.activeParticipantId) || player1
+  const activeSwapGift = game.gifts.find(
+    (g) => g.currentOwnerId === activeSwapParticipant?.id || g.id === activeSwapParticipant?.giftId
+  )
 
   // Can the active participant steal?
   const eligibleGiftsToSteal = game.gifts.filter(
@@ -330,21 +343,31 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         )}
 
         {/* Phase 3: FINAL_SWAP */}
-        {game.phase === 'FINAL_SWAP' && player1 && (
+        {game.phase === 'FINAL_SWAP' && activeSwapParticipant && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch flex-1 min-h-0">
             <div className="lg:col-span-2 space-y-6">
               <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
                 <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
-                  <Crown className="w-3.5 h-3.5 text-amber-700" />
-                  最終交換權 (The Final Turn)
+                  {activeSwapParticipant.order === 1 ? (
+                    <Crown className="w-3.5 h-3.5 text-amber-700" />
+                  ) : (
+                    <ArrowRightLeft className="w-3.5 h-3.5 text-amber-700" />
+                  )}
+                  {activeSwapParticipant.order === 1
+                    ? '最終交換權 (The Final Turn)'
+                    : '被換禮反擊特權 (Swap Reaction)'}
                 </span>
 
                 <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
-                  輪到第 1 棒【{player1.name}】行使特權！
+                  {activeSwapParticipant.order === 1
+                    ? `輪到第 1 棒【${activeSwapParticipant.name}】行使特權！`
+                    : `【${activeSwapParticipant.name}】的禮物被換走了！`}
                 </h2>
 
                 <p className="text-sm text-stone-600 max-w-md mx-auto">
-                  所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！
+                  {activeSwapParticipant.order === 1
+                    ? '所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！'
+                    : `【${activeSwapParticipant.name}】現在可以決定保留手中的新禮物，或與場上其他未冰凍禮物互換！`}
                 </p>
 
                 <div className="pt-2">
@@ -355,7 +378,7 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
                     className="font-bold text-base h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
                   >
                     <Sparkles className="w-4 h-4 mr-2" />
-                    進行最終決定
+                    {activeSwapParticipant.order === 1 ? '進行最終決定' : '進行換禮決定'}
                   </Button>
                 </div>
               </div>
@@ -443,14 +466,16 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
       />
 
       {/* Final Swap Modal */}
-      {player1 && (
+      {activeSwapParticipant && (
         <FinalSwapModal
           open={finalSwapModalOpen}
           onOpenChange={setFinalSwapModalOpen}
-          player1={player1}
-          player1Gift={player1Gift}
+          activeParticipant={activeSwapParticipant}
+          activeGift={activeSwapGift}
           gifts={game.gifts}
           participants={game.participants}
+          lastStolenGiftId={game.turnState.lastStolenGiftId}
+          allowImmediateStealBack={game.settings.allowImmediateStealBack}
           onExecuteSwap={executeFinalSwap}
         />
       )}
