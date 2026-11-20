@@ -9,7 +9,6 @@ import {
   Flame,
   Snowflake,
   Sparkles,
-  Send,
   AlertTriangle,
   Users,
   Check,
@@ -83,12 +82,10 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   )
   const [isJoining, setIsJoining] = useState(false)
 
-  // Chat message state
-  const [chatText, setChatText] = useState('')
   const { reactions, triggerReaction } = useFloatingReactions()
 
-  // Modal / Tab state
-  const [viewOpenedGifts, setViewOpenedGifts] = useState(false)
+  // Modal / Dialog state
+  const [showParticipantsDialog, setShowParticipantsDialog] = useState(false)
   const [acknowledgedTurn, setAcknowledgedTurn] = useState(false)
 
   // Send request for latest game state and announce presence on mount/reconnect
@@ -165,23 +162,6 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
     bridge.send('PLAYER_JOIN', newPlayer)
     setIsJoining(false)
     sounds.playJingle()
-  }
-
-  // Send a live chat comment
-  const handleSendChat = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!chatText.trim() || !myPlayer) return
-
-    bridge.send('CHAT_MESSAGE', {
-      id: `chat_${Date.now()}`,
-      playerId: myPlayer.id,
-      playerName: myPlayer.name,
-      playerEmoji: myPlayer.avatarEmoji || '🎅',
-      text: chatText.trim(),
-      timestamp: Date.now(),
-    })
-
-    setChatText('')
   }
 
   // Send quick emoji reaction with Google Meet floating animation
@@ -349,7 +329,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                     {myPlayer.name}，換你了！
                   </h2>
                   <p className="text-xs text-stone-600">
-                    請抬頭看大螢幕，並到台前挑選禮物（拆新禮物或搶場上禮物）！
+                    請到台前挑選禮物（拆新禮物或搶場上禮物）！
                   </p>
                 </div>
               </>
@@ -360,7 +340,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
               onClick={() => setAcknowledgedTurn(true)}
               className="w-full h-12 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-base rounded-2xl shadow-none"
             >
-              我知道了，我看大螢幕！
+              我知道了！
             </Button>
           </div>
         </div>
@@ -395,20 +375,19 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setViewOpenedGifts(!viewOpenedGifts)}
-            className="text-xs h-7 px-2.5 border-stone-200 text-stone-700 bg-white"
+            onClick={() => setShowParticipantsDialog(true)}
+            className="text-xs h-7 px-2.5 border-stone-200 text-stone-700 bg-white hover:bg-stone-50 rounded-lg shadow-2xs font-semibold flex items-center gap-1"
           >
-            <GiftIcon className="w-3 h-3 mr-1 text-rose-500" />
-            已開 ({gameState?.gifts.length || 0})
+            <Users className="w-3.5 h-3.5 text-stone-600" />
+            <span>玩家名單 ({gameState?.participants.length || 0})</span>
           </Button>
-
 
           <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="即時連線中" />
         </div>
       </header>
 
       {/* Main Body Content */}
-      <main className="flex-1 p-4 space-y-3 max-w-md w-full mx-auto pb-32">
+      <main className="flex-1 p-4 space-y-3 max-w-md w-full mx-auto pb-20">
         {/* WAITING FOR SYNC */}
         {!gameState && (
           <div className="bg-white p-6 rounded-3xl border border-stone-200 text-center space-y-3 shadow-xs">
@@ -547,6 +526,76 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Opened Gifts List - Displayed directly below Your Status without collapsing */}
+            <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between pb-1.5 border-b border-stone-100">
+                <div className="flex items-center gap-1.5">
+                  <GiftIcon className="w-3.5 h-3.5 text-rose-600" />
+                  <span className="text-xs font-bold text-stone-900">
+                    已開禮物清單
+                  </span>
+                </div>
+                <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  已開 {gameState.gifts.length} 份
+                </span>
+              </div>
+
+              {gameState.gifts.length === 0 ? (
+                <div className="text-center py-4 text-xs text-stone-400">
+                  目前場上尚未有拆開的禮物
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {gameState.gifts.map((gift) => {
+                    const owner = gameState.participants.find((p) => p.id === gift.currentOwnerId)
+                    const isMyGift = gift.currentOwnerId === myPlayer.id
+
+                    return (
+                      <div
+                        key={gift.id}
+                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs transition-all ${isMyGift
+                          ? 'bg-rose-50/70 border-rose-200 ring-1 ring-rose-200'
+                          : 'bg-stone-50 border-stone-200/80'
+                          }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg shrink-0">
+                            {gift.isFrozen ? '❄️' : '🎁'}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-bold text-stone-900 truncate">
+                                {gift.title}
+                              </span>
+                              {isMyGift && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-600 text-white shrink-0">
+                                  你的
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-stone-500 truncate">
+                              目前持有者：{owner?.avatarEmoji || '👤'} {owner?.name || '無'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${gift.isFrozen
+                            ? 'bg-cyan-100 text-cyan-800 border border-cyan-200'
+                            : gift.stealCount > 0
+                              ? 'bg-amber-100 text-amber-800'
+                              : 'bg-stone-200/70 text-stone-600'
+                            }`}
+                        >
+                          {gift.isFrozen ? '❄️ 冰凍' : `搶過 ${gift.stealCount} 次`}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </>
         )}
 
@@ -583,73 +632,24 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
             )}
           </div>
         )}
-
-        {/* Opened Gifts Collapsible List */}
-        {viewOpenedGifts && (
-          <div className="bg-white p-4 rounded-2xl border border-stone-200 shadow-xs space-y-2">
-            <div className="flex items-center justify-between pb-1 border-b border-stone-100">
-              <span className="text-xs font-bold text-stone-900">已開禮物清單</span>
-              <button
-                type="button"
-                onClick={() => setViewOpenedGifts(false)}
-                className="text-xs text-stone-400 hover:text-stone-700"
-              >
-                收起
-              </button>
-            </div>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-              {(gameState?.gifts || []).map((gift) => (
-                <div
-                  key={gift.id}
-                  className="flex items-center justify-between p-2 rounded-lg bg-stone-50 border border-stone-200 text-xs"
-                >
-                  <div className="flex items-center gap-1.5 truncate">
-                    <GiftIcon className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                    <span className="font-bold text-stone-900 truncate">{gift.title}</span>
-                  </div>
-                  <span className="text-[10px] text-stone-500 shrink-0">
-                    {gift.isFrozen ? '❄️ 冰凍' : `搶過 ${gift.stealCount} 次`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </main>
 
-      {/* Floating Bottom Interaction Bar (Emoji & Live Chat) */}
-      <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/90 px-3 py-2.5 space-y-2 max-w-md mx-auto">
+      {/* Floating Bottom Interaction Bar (Emoji Reactions) */}
+      <footer className="fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-stone-200/90 px-3 py-2.5 max-w-md mx-auto">
         {/* Quick Emoji Reaction Buttons */}
-        <div className="flex items-center justify-around gap-1.5">
+        <div className="flex items-center justify-around gap-2">
           {QUICK_EMOJIS.map((emoji, idx) => (
             <button
               key={emoji}
               type="button"
               onClick={() => handleSendEmoji(emoji, idx)}
-              className="h-10 flex-1 rounded-xl bg-stone-100/80 hover:bg-stone-200/80 active:scale-90 text-xl flex items-center justify-center transition-transform"
+              className="h-11 flex-1 rounded-2xl bg-stone-100/90 hover:bg-stone-200/90 active:scale-90 text-2xl flex items-center justify-center transition-transform shadow-2xs"
               title={`發送 ${emoji}`}
             >
               {emoji}
             </button>
           ))}
         </div>
-
-        {/* Live Chat Comment Input */}
-        <form onSubmit={handleSendChat} className="flex items-center gap-2">
-          <Input
-            value={chatText}
-            onChange={(e) => setChatText(e.target.value)}
-            placeholder="發送即時留言給大螢幕..."
-            className="flex-1 h-9 bg-stone-50 border-stone-300 text-stone-900 placeholder:text-stone-400 text-xs rounded-xl"
-          />
-          <Button
-            type="submit"
-            disabled={!chatText.trim()}
-            className="h-9 px-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-none text-xs shrink-0"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </Button>
-        </form>
       </footer>
 
       {/* Leave Room Confirmation Dialog */}
@@ -692,6 +692,109 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
             >
               留在房間
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Participants Roster Dialog */}
+      <Dialog open={showParticipantsDialog} onOpenChange={setShowParticipantsDialog}>
+        <DialogContent className="max-w-xs sm:max-w-sm p-5 bg-white border-stone-200 rounded-3xl text-stone-900 max-h-[85vh] flex flex-col">
+          <DialogHeader className="text-left pb-2 border-b border-stone-100 shrink-0">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-rose-600" />
+                <DialogTitle className="text-base font-extrabold text-stone-900">
+                  玩家名單與順序
+                </DialogTitle>
+              </div>
+              <span className="text-xs font-mono font-bold text-stone-600 px-2 py-0.5 rounded-full bg-stone-100">
+                共 {gameState?.participants.length || 0} 位
+              </span>
+            </div>
+            <DialogDescription className="text-xs text-stone-500 pt-1">
+              {gameState?.phase === 'SETUP'
+                ? '等待抽籤中，主持人開始抽籤後將顯示出場序'
+                : '出場順序如下，輪到自己時手機會發出提醒！'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-2 py-2 pr-1">
+            {(() => {
+              const participants = gameState?.participants || []
+              // If order is drawn, sort by order; otherwise by join order
+              const sorted = [...participants].sort((a, b) => {
+                if (a.order && b.order) return a.order - b.order
+                if (a.order) return -1
+                if (b.order) return 1
+                return 0
+              })
+
+              if (sorted.length === 0) {
+                return (
+                  <div className="text-center py-6 text-xs text-stone-400">
+                    目前尚未有玩家入座
+                  </div>
+                )
+              }
+
+              return sorted.map((p) => {
+                const isMe = p.id === myPlayer.id || p.name.trim().toLowerCase() === myPlayer.name.trim().toLowerCase()
+                const isActive = gameState?.phase === 'PLAYING' && gameState?.turnState.activeParticipantId === p.id
+
+                return (
+                  <div
+                    key={p.id}
+                    className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all ${isMe
+                      ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500/25 shadow-xs'
+                      : isActive
+                        ? 'bg-amber-50/80 border-amber-300'
+                        : 'bg-stone-50 border-stone-200'
+                      }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="text-xl shrink-0">{p.avatarEmoji || '🎅'}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-bold truncate ${isMe ? 'text-rose-900 font-extrabold' : 'text-stone-900'}`}>
+                            {p.name}
+                          </span>
+                          {isMe && (
+                            <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-md bg-rose-600 text-white shrink-0">
+                              你
+                            </span>
+                          )}
+                          {isActive && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-500 text-white shrink-0">
+                              行動中
+                            </span>
+                          )}
+                        </div>
+                        {p.joinedVia === 'online' ? (
+                          <span className="text-[10px] text-stone-400">手機連線</span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0 font-mono">
+                      {p.order > 0 ? (
+                        <span
+                          className={`inline-block font-extrabold px-2.5 py-1 rounded-xl text-xs ${isMe
+                            ? 'bg-rose-600 text-white shadow-2xs'
+                            : 'bg-white border border-stone-200 text-stone-800'
+                            }`}
+                        >
+                          第 {p.order} 棒
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-stone-400 px-2 py-1">
+                          待抽籤
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )
+              })
+            })()}
           </div>
         </DialogContent>
       </Dialog>

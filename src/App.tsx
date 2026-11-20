@@ -184,16 +184,6 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
           // If already in PLAYING or later phase, still sync state so player companion has current view
           bridge.send('SYNC_STATE', { gameState: currentGame })
         }
-      } else if (msg.type === 'CHAT_MESSAGE') {
-        const { senderName, avatarEmoji, text } = msg.payload
-        addLiveLog({
-          id: `chat_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-          timestamp: Date.now(),
-          type: 'CHAT_MESSAGE',
-          actorName: senderName,
-          actorAvatarEmoji: avatarEmoji,
-          message: text,
-        })
       } else if (msg.type === 'EMOJI_REACTION') {
         const { senderName, avatarEmoji, emoji } = msg.payload
         triggerReaction(emoji, senderName, avatarEmoji)
