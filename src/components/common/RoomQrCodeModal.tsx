@@ -10,6 +10,10 @@ import { Button } from '@/components/ui/button'
 import { QrCode, Copy, Check, ExternalLink, Smartphone } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 
+import { useLanInfo } from '@/hooks/useLanInfo'
+
+import { copyToClipboard } from '@/lib/clipboard'
+
 interface RoomQrCodeModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -26,14 +30,17 @@ export const RoomQrCodeModal: React.FC<RoomQrCodeModalProps> = ({
   participantCount,
 }) => {
   const [copied, setCopied] = useState(false)
+  const { lanOrigin, lanIp } = useLanInfo()
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : ''
+  const origin = lanOrigin || (typeof window !== 'undefined' ? window.location.origin : '')
   const joinUrl = `${origin}/?room=${roomId}&role=player`
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(joinUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  const handleCopyLink = async () => {
+    const ok = await copyToClipboard(joinUrl)
+    if (ok) {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
   }
 
   return (

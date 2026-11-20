@@ -57,6 +57,7 @@ export function useWhiteElephant() {
 
   // Auto-save on state change
   const saveState = useCallback(async (nextState: GameState) => {
+    stateRef.current = nextState
     setGame(nextState)
     try {
       await storage.saveGame(nextState)
@@ -184,27 +185,58 @@ export function useWhiteElephant() {
     name: string,
     customAvatarEmoji?: string,
     joinedVia: 'online' | 'local' = 'local',
-    isManual?: boolean
-  ) => {
-    if (!game || !name.trim()) return
+    isManual?: boolean,
+    customId?: string
+  ): Promise<GameState | null> => {
+    const currentGame = stateRef.current
+    if (!currentGame || !name.trim()) return null
     const trimmed = name.trim()
-    const newParticipant: Participant = {
-      id: `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-      name: trimmed,
-      order: 0,
-      avatarEmoji: customAvatarEmoji || AVATAR_EMOJIS[game.participants.length % AVATAR_EMOJIS.length],
-      joinedVia,
-      isManual,
+
+    // Check if participant with this ID or name already exists
+    const existingIndex = currentGame.participants.findIndex(
+      (p) => (customId && p.id === customId) || p.name.trim().toLowerCase() === trimmed.toLowerCase()
+    )
+
+    let updatedParticipants: Participant[]
+    if (existingIndex >= 0) {
+      updatedParticipants = [...currentGame.participants]
+      updatedParticipants[existingIndex] = {
+        ...updatedParticipants[existingIndex],
+        id: customId || updatedParticipants[existingIndex].id,
+        avatarEmoji: customAvatarEmoji || updatedParticipants[existingIndex].avatarEmoji,
+        joinedVia,
+      }
+    } else {
+      const newParticipant: Participant = {
+        id: customId || `p_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: trimmed,
+        order: 0,
+        avatarEmoji: customAvatarEmoji || AVATAR_EMOJIS[currentGame.participants.length % AVATAR_EMOJIS.length],
+        joinedVia,
+        isManual,
+      }
+      updatedParticipants = [...currentGame.participants, newParticipant]
     }
-    const updatedParticipants = [...game.participants, newParticipant]
+
+    const joinLog: ActionLog = {
+      id: `join_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      timestamp: Date.now(),
+      type: 'PLAYER_JOINED',
+      actorName: trimmed,
+      actorAvatarEmoji: customAvatarEmoji,
+      message: `${customAvatarEmoji || '🎄'} ${trimmed} 透過手機加入遊戲！`,
+    }
+
     const updated: GameState = {
-      ...game,
+      ...currentGame,
       participants: updatedParticipants,
       unopenedGiftsCount: updatedParticipants.length,
-      historyStack: pushHistorySnapshot(game),
+      logs: existingIndex >= 0 ? currentGame.logs : [joinLog, ...currentGame.logs].slice(0, 80),
+      historyStack: pushHistorySnapshot(currentGame),
     }
     await saveState(updated)
-  }, [game, saveState])
+    return updated
+  }, [saveState])
 
   // Add Participants in Batch (multiline or comma-separated)
   const addParticipantsBatch = useCallback(async (rawText: string, joinedVia: 'online' | 'local' = 'local') => {
@@ -726,13 +758,14 @@ export function useWhiteElephant() {
 
   // Add live chat or emoji log from realtime player
   const addLiveLog = useCallback(async (log: ActionLog) => {
-    if (!game) return
+    const currentGame = stateRef.current
+    if (!currentGame) return
     const updated: GameState = {
-      ...game,
-      logs: [log, ...game.logs].slice(0, 80),
+      ...currentGame,
+      logs: [log, ...currentGame.logs].slice(0, 80),
     }
     await saveState(updated)
-  }, [game, saveState])
+  }, [saveState])
 
   return {
     game,

@@ -1,63 +1,112 @@
-import { createClient, RealtimeChannel } from '@supabase/supabase-js'
 import { RealtimeMessage } from './types'
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
-
-const hasSupabase = Boolean(supabaseUrl && supabaseAnonKey && supabaseUrl !== 'undefined')
-
-export const supabase = hasSupabase
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
 
 export type MessageHandler = (message: RealtimeMessage) => void
 
 export class RoomRealtimeBridge {
   private roomId: string
-  private supabaseChannel: RealtimeChannel | null = null
+  private ws: WebSocket | null = null
   private localBroadcast: BroadcastChannel | null = null
   private handlers: Set<MessageHandler> = new Set()
+  private isDestroyed = false
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  private queuedMessages: string[] = []
+  private recentMessageKeys: Set<string> = new Set()
 
   constructor(roomId: string) {
-    this.roomId = roomId
+    this.roomId = (roomId || '').trim().toUpperCase()
     this.init()
   }
 
   private init() {
     const channelName = `white_elephant_room_${this.roomId}`
 
-    // 1. Supabase Realtime channel if credentials exist
-    if (supabase) {
-      try {
-        this.supabaseChannel = supabase.channel(channelName, {
-          config: {
-            broadcast: { self: false },
-          },
-        })
+    // 1. Connect to Local LAN WebSocket Server (Zero-cloud, runs on the same host & port)
+    this.connectWebSocket()
 
-        this.supabaseChannel
-          .on('broadcast', { event: 'game_event' }, ({ payload }) => {
-            this.notifyHandlers(payload as RealtimeMessage)
-          })
-          .subscribe((status) => {
-            console.log(`[Supabase Realtime] Room ${this.roomId} status:`, status)
-          })
-      } catch (err) {
-        console.warn('[Supabase Realtime] Initialization failed:', err)
-      }
-    }
-
-    // 2. Local BroadcastChannel for multi-tab testing on same machine
+    // 2. Local BroadcastChannel for instant same-browser tab sync
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
         this.localBroadcast = new BroadcastChannel(channelName)
         this.localBroadcast.onmessage = (event) => {
-          this.notifyHandlers(event.data as RealtimeMessage)
+          this.handleIncoming(event.data as RealtimeMessage)
         }
       } catch (e) {
         console.warn('[BroadcastChannel] Initialization failed:', e)
       }
     }
+  }
+
+  private connectWebSocket() {
+    if (typeof window === 'undefined' || this.isDestroyed) return
+
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+      const wsUrl = `${protocol}//${window.location.host}/ws?room=${encodeURIComponent(this.roomId)}`
+
+      this.ws = new WebSocket(wsUrl)
+
+      this.ws.onopen = () => {
+        // Flush any queued messages
+        while (this.queuedMessages.length > 0) {
+          const item = this.queuedMessages.shift()
+          if (item && this.ws?.readyState === WebSocket.OPEN) {
+            this.ws.send(item)
+          }
+        }
+      }
+
+      this.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data) as RealtimeMessage
+          this.handleIncoming(message)
+        } catch {
+          // Ignore invalid JSON
+        }
+      }
+
+      this.ws.onclose = () => {
+        if (!this.isDestroyed) {
+          this.scheduleReconnect()
+        }
+      }
+
+      this.ws.onerror = () => {
+        // Error will also trigger onclose, handled there
+      }
+    } catch (err) {
+      console.warn('[Local WebSocket] Connection failed, retrying...', err)
+      this.scheduleReconnect()
+    }
+  }
+
+  private scheduleReconnect() {
+    if (this.reconnectTimer || this.isDestroyed) return
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null
+      this.connectWebSocket()
+    }, 2000)
+  }
+
+  private handleIncoming(message: RealtimeMessage) {
+    if (!message || !message.roomId) return
+    if (message.roomId.trim().toUpperCase() !== this.roomId) {
+      console.warn(`[RealtimeBridge] Dropped message for different room. Expected: '${this.roomId}', Got: '${message.roomId}'`)
+      return
+    }
+
+    // Deduplicate messages across WebSocket and BroadcastChannel
+    const key = `${message.type}_${message.timestamp}_${typeof message.payload === 'object' ? JSON.stringify(message.payload).slice(0, 60) : message.payload}`
+    if (this.recentMessageKeys.has(key)) return
+    this.recentMessageKeys.add(key)
+
+    // Keep cache bounded
+    if (this.recentMessageKeys.size > 200) {
+      const firstKey = this.recentMessageKeys.values().next().value
+      if (firstKey) this.recentMessageKeys.delete(firstKey)
+    }
+
+    console.log(`[RealtimeBridge:${this.roomId}] Received '${message.type}' from remote. Notifying ${this.handlers.size} handlers.`)
+    this.notifyHandlers(message)
   }
 
   public subscribe(handler: MessageHandler): () => void {
@@ -68,7 +117,6 @@ export class RoomRealtimeBridge {
   }
 
   private notifyHandlers(message: RealtimeMessage) {
-    if (message.roomId !== this.roomId) return
     this.handlers.forEach((h) => {
       try {
         h(message)
@@ -86,30 +134,54 @@ export class RoomRealtimeBridge {
       timestamp: Date.now(),
     }
 
-    // Broadcast via Supabase
-    if (this.supabaseChannel) {
-      this.supabaseChannel.send({
-        type: 'broadcast',
-        event: 'game_event',
-        payload: message,
-      })
+    // Mark as seen locally to prevent duplicate feedback
+    const key = `${message.type}_${message.timestamp}_${typeof message.payload === 'object' ? JSON.stringify(message.payload).slice(0, 60) : message.payload}`
+    this.recentMessageKeys.add(key)
+
+    const serialized = JSON.stringify(message)
+    console.log(`[RealtimeBridge:${this.roomId}] Sent '${type}'`)
+
+    // 1. Send via Local LAN WebSocket
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(serialized)
+    } else {
+      this.queuedMessages.push(serialized)
+      // Send via HTTP fallback so messages (joins, emoji, chat) reach host even if mobile WS is connecting
+      if (typeof window !== 'undefined' && typeof fetch === 'function') {
+        fetch('/api/room-message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: serialized,
+        }).catch(() => {})
+      }
     }
 
-    // Broadcast via local BroadcastChannel
+    // 2. Broadcast via local browser channel for multi-tabs
     if (this.localBroadcast) {
-      this.localBroadcast.postMessage(message)
+      try {
+        this.localBroadcast.postMessage(message)
+      } catch {
+        // BroadcastChannel send error ignored
+      }
     }
   }
 
   public destroy() {
-    if (this.supabaseChannel) {
-      this.supabaseChannel.unsubscribe()
-      this.supabaseChannel = null
+    this.isDestroyed = true
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = null
+    }
+    if (this.ws) {
+      this.ws.close()
+      this.ws = null
     }
     if (this.localBroadcast) {
       this.localBroadcast.close()
       this.localBroadcast = null
     }
     this.handlers.clear()
+    this.recentMessageKeys.clear()
+    this.queuedMessages = []
   }
 }

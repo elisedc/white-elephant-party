@@ -29,7 +29,10 @@ import {
   Laptop,
   Copy,
   Check,
+  Wifi,
 } from 'lucide-react'
+import { copyToClipboard } from '@/lib/clipboard'
+import { useLanInfo } from '@/hooks/useLanInfo'
 import { GameSettings, Participant } from '@/types/game'
 
 interface GameSetupFormProps {
@@ -77,14 +80,16 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
 
   // Copy join link state
   const [copied, setCopied] = useState(false)
+  const { lanOrigin, lanIp } = useLanInfo()
 
+  const origin = lanOrigin || (typeof window !== 'undefined' ? window.location.origin : '')
   const joinUrl = typeof window !== 'undefined'
-    ? `${window.location.origin}${window.location.pathname}?role=player&room=${roomId || ''}`
+    ? `${origin}${window.location.pathname}?role=player&room=${roomId || ''}`
     : ''
 
-  const handleCopyJoinUrl = () => {
-    if (typeof window !== 'undefined' && navigator.clipboard) {
-      navigator.clipboard.writeText(joinUrl)
+  const handleCopyJoinUrl = async () => {
+    const ok = await copyToClipboard(joinUrl)
+    if (ok) {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     }
@@ -154,7 +159,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
           className="self-start sm:self-center shrink-0 h-9 px-3.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 text-xs font-semibold shadow-2xs flex items-center gap-1.5 transition-all"
         >
           <Settings2 className="w-4 h-4 text-amber-600" />
-          規則設定
+          遊戲設定
         </Button>
       </div>
 
@@ -168,8 +173,8 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               onUpdateSettings({ mode: 'online' })
             }}
             className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${mode === 'online'
-                ? 'bg-white text-rose-600 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
+              ? 'bg-white text-rose-600 shadow-xs'
+              : 'text-stone-600 hover:text-stone-900'
               }`}
           >
             <Smartphone className="w-3.5 h-3.5" />
@@ -183,8 +188,8 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
               onUpdateSettings({ mode: 'local' })
             }}
             className={`py-1.5 px-3.5 text-xs font-bold rounded-lg flex items-center gap-1.5 transition-all ${mode === 'local'
-                ? 'bg-white text-stone-900 shadow-xs'
-                : 'text-stone-600 hover:text-stone-900'
+              ? 'bg-white text-stone-900 shadow-xs'
+              : 'text-stone-600 hover:text-stone-900'
               }`}
           >
             <Laptop className="w-3.5 h-3.5 text-stone-600" />
@@ -201,15 +206,23 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
           {/* Left: QR Code Card (Fitted to viewport on desktop, scrollable on mobile) */}
           <Card className="md:col-span-5 border-stone-200/90 bg-white shadow-xs p-3.5 sm:p-4 flex flex-col items-center justify-between text-center shrink-0 md:shrink md:min-h-0 overflow-visible md:overflow-hidden space-y-2.5 sm:space-y-3 md:space-y-0">
             <div className="space-y-1 shrink-0">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                <QrCode className="w-3 h-3" />
-                現場手機掃碼
-              </span>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  <QrCode className="w-3 h-3" />
+                  現場手機掃碼
+                </span>
+                {lanIp && lanIp !== 'localhost' && lanIp !== '127.0.0.1' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <Wifi className="w-3 h-3 text-emerald-600" />
+                    同 Wi-Fi 直連
+                  </span>
+                )}
+              </div>
               <h3 className="text-base font-extrabold text-stone-900 leading-tight">
                 掃描 QR Code 入座
               </h3>
               <p className="text-[11px] text-stone-500 max-w-xs">
-                拿起手機相機掃描，輸入姓名並挑選頭像直接加入大廳！
+                手機連至相同 Wi-Fi 即可掃描入座，免下載、零伺服器！
               </p>
             </div>
 
@@ -511,7 +524,7 @@ export const GameSetupForm: React.FC<GameSetupFormProps> = ({
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
               <Settings2 className="w-5 h-5 text-amber-600" />
-              遊戲規則設定
+              遊戲設定
             </DialogTitle>
             <DialogDescription className="text-stone-500 text-xs">
               自訂白象聚會名稱、禮物預算限制與防搶奪保護機制。

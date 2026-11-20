@@ -16,7 +16,15 @@ import {
   ChevronRight,
   Smile,
   Crown,
+  ArrowLeft,
 } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import confetti from 'canvas-confetti'
 import { sounds } from '@/lib/sound'
 import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
@@ -25,6 +33,7 @@ interface PlayerMobileViewProps {
   roomId: string
   bridge: RoomRealtimeBridge
   gameState: GameState | null
+  onBackToLanding?: () => void
   onJoinSuccess?: (player: Participant) => void
 }
 
@@ -35,6 +44,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   roomId,
   bridge,
   gameState,
+  onBackToLanding,
 }) => {
   // Check if player has already joined this room
   const sessionKey = `we_player_${roomId}`
@@ -46,6 +56,25 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
       return null
     }
   })
+
+  // Leave room confirmation dialog
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+
+  const handleConfirmLeave = () => {
+    setShowLeaveDialog(false)
+    onBackToLanding?.()
+  }
+
+  const handleExitAndClearIdentity = () => {
+    try {
+      localStorage.removeItem(sessionKey)
+    } catch {
+      // ignore
+    }
+    setMyPlayer(null)
+    setShowLeaveDialog(false)
+    onBackToLanding?.()
+  }
 
   // Join form state
   const [nameInput, setNameInput] = useState('')
@@ -62,10 +91,13 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   const [viewOpenedGifts, setViewOpenedGifts] = useState(false)
   const [acknowledgedTurn, setAcknowledgedTurn] = useState(false)
 
-  // Send request for latest game state on mount
+  // Send request for latest game state and announce presence on mount/reconnect
   useEffect(() => {
+    if (myPlayer) {
+      bridge.send('PLAYER_JOIN', myPlayer)
+    }
     bridge.send('REQUEST_SYNC', {})
-  }, [bridge])
+  }, [bridge, myPlayer?.id])
 
   // Listen to incoming messages
   useEffect(() => {
@@ -85,7 +117,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   const currentParticipant = gameState?.participants.find((p) => p.id === myPlayer?.id)
   const isMyTurn = Boolean(
     gameState?.phase === 'PLAYING' &&
-      gameState?.turnState.activeParticipantId === myPlayer?.id
+    gameState?.turnState.activeParticipantId === myPlayer?.id
   )
   const isMyStealReaction = isMyTurn && gameState?.turnState.isStealReaction
 
@@ -101,7 +133,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
       if (typeof window !== 'undefined' && 'vibrate' in navigator) {
         try {
           navigator.vibrate([250, 100, 250, 100, 400])
-        } catch {}
+        } catch { }
       }
       sounds.playJingle()
       confetti({
@@ -175,7 +207,24 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   if (!myPlayer) {
     return (
       <div className="min-h-screen bg-[#faf7f2] flex flex-col justify-between p-4 max-w-md mx-auto">
-        <div className="pt-6 pb-4 text-center space-y-2">
+        {/* Top Navigation Bar */}
+        <div className="flex items-center justify-between pt-1 pb-1">
+          {onBackToLanding ? (
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-stone-900 px-2.5 py-1.5 rounded-lg hover:bg-stone-200/60 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              返回首頁
+            </button>
+          ) : (
+            <div />
+          )}
+          <span className="text-[11px] font-mono text-stone-400">房間：{roomId}</span>
+        </div>
+
+        <div className="pt-2 pb-4 text-center space-y-2">
           <div className="w-16 h-16 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-3xl mx-auto shadow-2xs">
             🎁
           </div>
@@ -199,11 +248,10 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                   key={emoji}
                   type="button"
                   onClick={() => setSelectedAvatar(emoji)}
-                  className={`h-11 rounded-xl text-xl flex items-center justify-center transition-all ${
-                    selectedAvatar === emoji
-                      ? 'bg-rose-100 border-2 border-rose-500 scale-105 shadow-2xs'
-                      : 'bg-stone-50 border border-stone-200 hover:bg-stone-100'
-                  }`}
+                  className={`h-11 rounded-xl text-xl flex items-center justify-center transition-all ${selectedAvatar === emoji
+                    ? 'bg-rose-100 border-2 border-rose-500 scale-105 shadow-2xs'
+                    : 'bg-stone-50 border border-stone-200 hover:bg-stone-100'
+                    }`}
                 >
                   {emoji}
                 </button>
@@ -235,8 +283,19 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           </Button>
         </form>
 
-        <div className="py-4 text-center text-xs text-stone-400">
-          房間代碼：<span className="font-mono font-bold text-stone-600">{roomId}</span>
+        <div className="py-4 text-center space-y-1.5">
+          <div className="text-xs text-stone-400">
+            房間代碼：<span className="font-mono font-bold text-stone-600">{roomId}</span>
+          </div>
+          {onBackToLanding && (
+            <button
+              type="button"
+              onClick={onBackToLanding}
+              className="text-xs text-stone-500 hover:text-rose-600 hover:underline block mx-auto transition-colors"
+            >
+              或是返回首頁輸入其他代碼
+            </button>
+          )}
         </div>
       </div>
     )
@@ -308,8 +367,19 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
       )}
 
       {/* Mobile Top Header */}
-      <header className="sticky top-0 z-20 w-full bg-white/95 backdrop-blur-md border-b border-stone-200 px-4 py-2.5 flex items-center justify-between">
+      <header className="sticky top-0 z-20 w-full bg-white/95 backdrop-blur-md border-b border-stone-200 px-3.5 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
+          {onBackToLanding && (
+            <button
+              type="button"
+              onClick={() => setShowLeaveDialog(true)}
+              className="p-1.5 -ml-1 text-stone-500 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition-colors"
+              title="返回首頁"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+
           <span className="text-xl">{myPlayer.avatarEmoji || '🎅'}</span>
           <div>
             <h2 className="font-extrabold text-sm text-stone-900 tracking-tight leading-none">
@@ -332,7 +402,8 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
             已開 ({gameState?.gifts.length || 0})
           </Button>
 
-          <span className="h-2 w-2 rounded-full bg-emerald-500" title="即時連線中" />
+
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" title="即時連線中" />
         </div>
       </header>
 
@@ -346,8 +417,19 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
               連線至交換禮物大螢幕中...
             </h3>
             <p className="text-xs text-stone-500">
-              正在同步遊戲即時進度（房間代碼：{roomId}）
+              正在同步遊戲即時進度（房間代碼：<span className="font-mono font-bold text-stone-700">{roomId}</span>）
             </p>
+            {onBackToLanding && (
+              <div className="pt-2 border-t border-stone-100">
+                <button
+                  type="button"
+                  onClick={() => setShowLeaveDialog(true)}
+                  className="text-xs text-rose-600 hover:text-rose-700 hover:underline font-medium"
+                >
+                  房間代碼不符？返回首頁重新輸入或掃碼
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -569,6 +651,50 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           </Button>
         </form>
       </footer>
+
+      {/* Leave Room Confirmation Dialog */}
+      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <DialogContent className="max-w-xs p-5 bg-white border-stone-200 rounded-3xl text-center">
+          <DialogHeader className="items-center text-center">
+            <div className="w-11 h-11 rounded-2xl bg-stone-100 text-stone-700 flex items-center justify-center mb-1 text-lg">
+              🏠
+            </div>
+            <DialogTitle className="text-base font-extrabold text-stone-900">
+              返回遊戲首頁？
+            </DialogTitle>
+            <DialogDescription className="text-xs text-stone-500 pt-1 leading-relaxed">
+              你目前已加入房間【<span className="font-mono font-bold text-stone-800">{roomId}</span>】。你可以隨時再輸入代碼回到房間。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-2 pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleConfirmLeave}
+              className="w-full text-xs h-9 font-semibold text-stone-700 border-stone-200 hover:bg-stone-50 rounded-xl"
+            >
+              返回首頁（保留此房間身份）
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={handleExitAndClearIdentity}
+              className="w-full text-xs h-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl font-medium"
+            >
+              退出並清除登入記錄
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => setShowLeaveDialog(false)}
+              className="w-full text-xs h-9 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl"
+            >
+              留在房間
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

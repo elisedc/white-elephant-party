@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { useWhiteElephant } from '@/hooks/useWhiteElephant'
 import { Snowfall } from '@/components/common/Snowfall'
 import { ChristmasHeader } from '@/components/common/ChristmasHeader'
@@ -27,7 +27,13 @@ import { GameState } from '@/types/game'
 /**
  * Mobile Player Companion View
  */
-function PlayerApp({ roomId }: { roomId: string }) {
+function PlayerApp({
+  roomId,
+  onBackToLanding,
+}: {
+  roomId: string
+  onBackToLanding?: () => void
+}) {
   const bridge = useMemo(() => new RoomRealtimeBridge(roomId), [roomId])
   const [gameState, setGameState] = useState<GameState | null>(() => {
     try {
@@ -43,33 +49,55 @@ function PlayerApp({ roomId }: { roomId: string }) {
   })
 
   useEffect(() => {
-    // Listen for state sync from host
+    let isCancelled = false
+
+    // 1. Listen for state sync from host via bridge
     const unsubscribe = bridge.subscribe((msg) => {
-      if (msg.type === 'SYNC_STATE') {
+      if (msg.type === 'SYNC_STATE' && msg.payload?.gameState) {
         setGameState(msg.payload.gameState)
       }
     })
 
-    // Initial state request
+    // 2. Fetch room state via HTTP fallback immediately (instant sync for mobile devices)
+    fetch(`/api/room-state?room=${encodeURIComponent(roomId)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isCancelled && data?.gameState) {
+          setGameState(data.gameState)
+        }
+      })
+      .catch(() => {})
+
+    // 3. Initial state request via bridge
     bridge.send('REQUEST_SYNC', {})
 
-    // Periodic heartbeat sync request to stay in sync
+    // 4. Periodic heartbeat sync request to stay in sync
     const interval = setInterval(() => {
       bridge.send('REQUEST_SYNC', {})
-    }, 3000)
+      fetch(`/api/room-state?room=${encodeURIComponent(roomId)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!isCancelled && data?.gameState) {
+            setGameState(data.gameState)
+          }
+        })
+        .catch(() => {})
+    }, 2500)
 
     return () => {
+      isCancelled = true
       unsubscribe()
       clearInterval(interval)
       bridge.destroy()
     }
-  }, [bridge])
+  }, [bridge, roomId])
 
   return (
     <PlayerMobileView
       roomId={roomId}
       bridge={bridge}
       gameState={gameState}
+      onBackToLanding={onBackToLanding}
     />
   )
 }
@@ -127,6 +155,9 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
     return new RoomRealtimeBridge(game.id)
   }, [game?.id])
 
+  const gameRef = useRef(game)
+  gameRef.current = game
+
   // Sync state broadcast whenever game updates
   useEffect(() => {
     if (bridge && game) {
@@ -136,24 +167,22 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
 
   // Listen to remote player events (Join, Chat comment, Emoji reaction, Sync request)
   useEffect(() => {
-    if (!bridge || !game) return
+    if (!bridge) return
 
-    const unsubscribe = bridge.subscribe((msg) => {
+    const unsubscribe = bridge.subscribe(async (msg) => {
+      const currentGame = gameRef.current
+      if (!currentGame) return
+
       if (msg.type === 'PLAYER_JOIN') {
-        const { name, avatarEmoji } = msg.payload
-        const exists = game.participants.some(
-          (p) => p.name.trim().toLowerCase() === name.trim().toLowerCase()
-        )
-        if (!exists && game.phase === 'SETUP') {
-          addParticipant(name, avatarEmoji, 'online')
-          addLiveLog({
-            id: `join_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            timestamp: Date.now(),
-            type: 'PLAYER_JOINED',
-            actorName: name,
-            actorAvatarEmoji: avatarEmoji,
-            message: `${avatarEmoji || '🎄'} ${name} 透過手機加入遊戲！`,
-          })
+        const { id, name, avatarEmoji } = msg.payload
+        if (currentGame.phase === 'SETUP') {
+          const updated = await addParticipant(name, avatarEmoji, 'online', false, id)
+          if (updated) {
+            bridge.send('SYNC_STATE', { gameState: updated })
+          }
+        } else {
+          // If already in PLAYING or later phase, still sync state so player companion has current view
+          bridge.send('SYNC_STATE', { gameState: currentGame })
         }
       } else if (msg.type === 'CHAT_MESSAGE') {
         const { senderName, avatarEmoji, text } = msg.payload
@@ -178,14 +207,15 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
           message: `傳送了 ${emoji}`,
         })
       } else if (msg.type === 'REQUEST_SYNC') {
-        bridge.send('SYNC_STATE', { gameState: game })
+        const latest = gameRef.current || currentGame
+        bridge.send('SYNC_STATE', { gameState: latest })
       }
     })
 
     return () => {
       unsubscribe()
     }
-  }, [bridge, game, addParticipant, addLiveLog])
+  }, [bridge, addParticipant, addLiveLog, triggerReaction])
 
   useEffect(() => {
     if (game?.phase === 'PLAYING') {
@@ -527,16 +557,17 @@ export function App() {
   // Handle returning to landing screen
   const handleBackToLanding = () => {
     setCurrentView('landing')
+    setActiveRoomId('')
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href)
       url.searchParams.delete('role')
       url.searchParams.delete('room')
-      window.history.pushState({}, '', url.toString())
+      window.history.pushState({}, '', url.pathname)
     }
   }
 
   if (currentView === 'player' && activeRoomId) {
-    return <PlayerApp roomId={activeRoomId} />
+    return <PlayerApp roomId={activeRoomId} onBackToLanding={handleBackToLanding} />
   }
 
   if (currentView === 'host') {
