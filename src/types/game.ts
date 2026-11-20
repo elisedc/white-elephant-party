@@ -65,6 +65,7 @@ export interface TurnState {
   lastStolenGiftId?: string // Gift that was just stolen (cannot be stolen back immediately)
   lastVictimId?: string // Participant whose gift was just stolen
   turnStepCount: number // How many steals have happened in this single round
+  displacedGiftId?: string // The floating gift in the pool during final round (Player 1's original gift)
 }
 
 export interface GameState {

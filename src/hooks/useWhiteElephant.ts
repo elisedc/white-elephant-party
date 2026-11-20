@@ -419,7 +419,7 @@ export function useWhiteElephant() {
           timestamp: Date.now(),
           type: 'FINAL_SWAP',
           actorName: player1?.name || '第 1 棒',
-          message: `所有人都已完成回合！進入最後高潮：第 1 棒【${player1?.name}】獲得最終交換權！`,
+          message: `所有人都已完成回合！進入最後高潮：第 1 棒【${player1?.name}】獲得最終搶禮特權！`,
         }
         return {
           ...currentState,
@@ -430,6 +430,8 @@ export function useWhiteElephant() {
             activeParticipantId: player1?.id || '',
             isStealReaction: false,
             turnStepCount: 0,
+            displacedGiftId: undefined,
+            lastStolenGiftId: undefined,
           },
         }
       } else {
@@ -628,8 +630,8 @@ export function useWhiteElephant() {
     }
   }, [game, saveState, soundEnabled])
 
-  // Final swap action (Player 1 or chained swap victims)
-  const executeFinalSwap = useCallback(async (swapWithGiftId: string | null) => {
+  // Final steal chain action (Player 1 or chained victims)
+  const executeFinalSwap = useCallback(async (targetGiftId: string | null) => {
     if (!game || game.phase !== 'FINAL_SWAP') return
 
     const activeParticipant =
@@ -637,27 +639,50 @@ export function useWhiteElephant() {
       game.participants.find((p) => p.order === 1)
     if (!activeParticipant) return
 
-    const activeGift = game.gifts.find(
-      (g) => g.currentOwnerId === activeParticipant.id || g.id === activeParticipant.giftId
-    )
-
     let nextGifts = [...game.gifts]
     let nextParticipants = [...game.participants]
     const logsToAdd: ActionLog[] = []
     const isPlayer1 = activeParticipant.order === 1
+    const displacedGiftId = game.turnState.displacedGiftId
 
-    if (!swapWithGiftId) {
-      // Active player decided to KEEP their current gift
-      logsToAdd.push({
-        id: `log_${Date.now()}_keep`,
-        timestamp: Date.now(),
-        type: 'FINAL_SWAP',
-        actorId: activeParticipant.id,
-        actorName: activeParticipant.name,
-        message: isPlayer1
-          ? `第 1 棒【${activeParticipant.name}】決定保留自己手中的【${activeGift?.title || '禮物'}】，不進行最終交換！`
-          : `【${activeParticipant.name}】決定保留自己手中的【${activeGift?.title || '禮物'}】，不再繼續交換！`,
-      })
+    // CASE 1: Active participant chooses NOT to steal ("不搶禮物")
+    if (!targetGiftId) {
+      if (!displacedGiftId) {
+        // Player 1 didn't steal; keeps their own gift
+        const p1Gift = game.gifts.find((g) => g.id === activeParticipant.giftId)
+        logsToAdd.push({
+          id: `log_${Date.now()}_keep`,
+          timestamp: Date.now(),
+          type: 'FINAL_SWAP',
+          actorId: activeParticipant.id,
+          actorName: activeParticipant.name,
+          message: `第 1 棒【${activeParticipant.name}】決定不搶禮物，保留自己手中的【${p1Gift?.title || '禮物'}】！`,
+        })
+      } else {
+        // A victim whose gift was stolen chooses not to steal; receives the displaced gift!
+        const displacedGift = nextGifts.find((g) => g.id === displacedGiftId)
+        nextGifts = nextGifts.map((g) => {
+          if (g.id === displacedGiftId) {
+            return { ...g, currentOwnerId: activeParticipant.id }
+          }
+          return g
+        })
+        nextParticipants = nextParticipants.map((p) => {
+          if (p.id === activeParticipant.id) {
+            return { ...p, giftId: displacedGiftId }
+          }
+          return p
+        })
+
+        logsToAdd.push({
+          id: `log_${Date.now()}_keep`,
+          timestamp: Date.now(),
+          type: 'FINAL_SWAP',
+          actorId: activeParticipant.id,
+          actorName: activeParticipant.name,
+          message: `【${activeParticipant.name}】決定不搶禮物，收下待認領的【${displacedGift?.title || '禮物'}】！`,
+        })
+      }
 
       logsToAdd.unshift({
         id: `log_${Date.now()}_finish`,
@@ -688,20 +713,22 @@ export function useWhiteElephant() {
       return
     }
 
-    // Active player swaps with target gift
-    const targetGift = game.gifts.find((g) => g.id === swapWithGiftId)
+    // CASE 2: Active participant chooses to STEAL targetGiftId
+    const targetGift = game.gifts.find((g) => g.id === targetGiftId)
     const victim = game.participants.find((p) => p.id === targetGift?.currentOwnerId)
-
     if (!targetGift || !victim) return
+
+    // If there wasn't a displaced gift yet (Player 1's initial steal), Player 1's gift becomes displaced
+    const nextDisplacedGiftId = displacedGiftId || activeParticipant.giftId
+    const displacedGiftObj = game.gifts.find((g) => g.id === nextDisplacedGiftId)
 
     const newStealCount = (targetGift.stealCount || 0) + 1
     const shouldFreeze = newStealCount >= game.settings.maxSteals
 
-    // Swap gifts: targetGift goes to activeParticipant, activeGift goes to victim
+    // Update gifts:
+    // targetGift -> activeParticipant
+    // displacedGift -> pool (currentOwnerId = '')
     nextGifts = nextGifts.map((g) => {
-      if (activeGift && g.id === activeGift.id) {
-        return { ...g, currentOwnerId: victim.id }
-      }
       if (g.id === targetGift.id) {
         return {
           ...g,
@@ -710,21 +737,30 @@ export function useWhiteElephant() {
           isFrozen: shouldFreeze,
         }
       }
+      if (g.id === nextDisplacedGiftId) {
+        return {
+          ...g,
+          currentOwnerId: '',
+        }
+      }
       return g
     })
 
+    // Update participants:
+    // activeParticipant -> targetGift
+    // victim -> undefined (waiting to steal or claim displaced gift)
     nextParticipants = nextParticipants.map((p) => {
       if (p.id === activeParticipant.id) {
         return { ...p, giftId: targetGift.id }
       }
       if (p.id === victim.id) {
-        return { ...p, giftId: activeGift?.id }
+        return { ...p, giftId: undefined }
       }
       return p
     })
 
     logsToAdd.push({
-      id: `log_${Date.now()}_swap`,
+      id: `log_${Date.now()}_steal`,
       timestamp: Date.now(),
       type: 'FINAL_SWAP',
       actorId: activeParticipant.id,
@@ -734,8 +770,8 @@ export function useWhiteElephant() {
       giftId: targetGift.id,
       giftTitle: targetGift.title,
       message: isPlayer1
-        ? `第 1 棒【${activeParticipant.name}】發動最終交換權！用【${activeGift?.title}】交換了 ${victim.name} 的【${targetGift.title}】！`
-        : `【${activeParticipant.name}】發動換禮特權！用【${activeGift?.title}】交換了 ${victim.name} 的【${targetGift.title}】！`,
+        ? `第 1 棒【${activeParticipant.name}】發動最終特權，搶奪了 ${victim.name} 的【${targetGift.title}】！(已搶奪 ${newStealCount}/${game.settings.maxSteals} 次)`
+        : `【${activeParticipant.name}】發動反擊，搶奪了 ${victim.name} 的【${targetGift.title}】！(已搶奪 ${newStealCount}/${game.settings.maxSteals} 次)`,
     })
 
     if (shouldFreeze) {
@@ -751,23 +787,28 @@ export function useWhiteElephant() {
       })
     }
 
-    // Check if victim has any swappable gifts available
-    const swappableGifts = nextGifts.filter((g) => {
+    // Check if victim can steal any other gift:
+    // 1. Not victim's own
+    // 2. Not the displaced gift (that is claimed via "不搶")
+    // 3. Not frozen
+    // 4. Not the gift just stolen from them if !allowImmediateStealBack
+    const stealableGifts = nextGifts.filter((g) => {
       if (g.currentOwnerId === victim.id) return false
+      if (g.id === nextDisplacedGiftId) return false
       if (g.isFrozen) return false
       if (!game.settings.allowImmediateStealBack && g.id === targetGift.id) return false
       return true
     })
 
-    if (swappableGifts.length > 0) {
-      // Victim gets the turn to swap or keep!
+    if (stealableGifts.length > 0) {
+      // Victim gets the turn to react (steal another gift or take displaced gift)
       logsToAdd.unshift({
         id: `log_${Date.now()}_victim_turn`,
         timestamp: Date.now() + 2,
         type: 'FINAL_SWAP',
         actorId: victim.id,
         actorName: victim.name,
-        message: `【${victim.name}】的禮物被換走了！獲得換禮特權，可選擇保留手中的新禮物或與其他人交換！`,
+        message: `【${victim.name}】的禮物被搶走了！可選擇搶其他尚未冷凍的禮物，或收下待認領的【${displacedGiftObj?.title || '禮物'}】！`,
       })
 
       const nextState: GameState = {
@@ -779,9 +820,10 @@ export function useWhiteElephant() {
         turnState: {
           ...game.turnState,
           activeParticipantId: victim.id,
-          isStealReaction: true,
+          displacedGiftId: nextDisplacedGiftId,
           lastStolenGiftId: targetGift.id,
           lastVictimId: victim.id,
+          isStealReaction: true,
           turnStepCount: game.turnState.turnStepCount + 1,
         },
         historyStack: pushHistorySnapshot(game),
@@ -794,13 +836,26 @@ export function useWhiteElephant() {
         else sounds.playSteal()
       }
     } else {
-      // No swappable gifts remain for victim; game ends
+      // No other gifts can be stolen; victim automatically receives displacedGift!
+      nextGifts = nextGifts.map((g) => {
+        if (g.id === nextDisplacedGiftId) {
+          return { ...g, currentOwnerId: victim.id }
+        }
+        return g
+      })
+      nextParticipants = nextParticipants.map((p) => {
+        if (p.id === victim.id) {
+          return { ...p, giftId: nextDisplacedGiftId }
+        }
+        return p
+      })
+
       logsToAdd.unshift({
         id: `log_${Date.now()}_finish`,
         timestamp: Date.now() + 2,
         type: 'GAME_FINISH',
         actorName: '系統',
-        message: `場上已無其他可更換的禮物，交換禮物完美落幕！感謝所有人的熱情參與！Merry Christmas!`,
+        message: `場上已無其他尚未冷凍的禮物可搶奪，【${victim.name}】收下【${displacedGiftObj?.title || '禮物'}】，交換禮物完美落幕！Merry Christmas!`,
       })
 
       const finalState: GameState = {

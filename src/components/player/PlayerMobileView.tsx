@@ -658,32 +658,43 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
             gameState.participants.find((p) => p.id === gameState.turnState.activeParticipantId) ||
             gameState.participants.find((p) => p.order === 1)
           const isMe = activeSwapPlayer?.id === myPlayer?.id
-          const isPlayer1 = activeSwapPlayer?.order === 1
+          const displacedGift = gameState.turnState.displacedGiftId
+            ? gameState.gifts.find((g) => g.id === gameState.turnState.displacedGiftId)
+            : undefined
 
           return (
             <div
-              className={`p-5 rounded-3xl border text-center space-y-2 ${isMe
+              className={`p-5 rounded-3xl border text-center space-y-2 ${
+                isMe
                   ? 'border-amber-400 bg-amber-50/90 ring-2 ring-amber-300'
                   : 'border-amber-300 bg-amber-50/70'
-                }`}
+              }`}
             >
               <span className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800">
-                {isPlayer1 ? (
+                {!displacedGift ? (
                   <Crown className="w-3.5 h-3.5 text-amber-600" />
                 ) : (
-                  <ArrowRightLeft className="w-3.5 h-3.5 text-amber-600" />
+                  <Flame className="w-3.5 h-3.5 text-rose-600 fill-rose-600" />
                 )}
-                {isPlayer1 ? '最終交換權' : '被換禮反擊特權'}
+                {!displacedGift ? '最終搶禮特權' : '被搶反擊特權'}
               </span>
               <h3 className="text-xl font-bold text-stone-900">
-                {isMe ? '輪到你做決定了！' : `輪到【${activeSwapPlayer?.name}】行使特權！`}
+                {isMe
+                  ? !displacedGift
+                    ? '輪到你行使搶禮特權了！'
+                    : '你的禮物被搶走了！輪到你做決定！'
+                  : !displacedGift
+                  ? `輪到第 1 棒【${activeSwapPlayer?.name}】行使特權！`
+                  : `【${activeSwapPlayer?.name}】的禮物被搶走了！`}
               </h3>
               <p className="text-xs text-stone-600">
                 {isMe
-                  ? '你的禮物被交換或擁有特權，請看大螢幕選擇保留或交換其他禮物！'
-                  : isPlayer1
-                    ? '全體禮物已拆封完畢，第 1 棒正在決定是否與場上禮物互換！請看大螢幕！'
-                    : `【${activeSwapPlayer?.name}】的禮物被換走了，正在決定是否與場上禮物互換！請看大螢幕！`}
+                  ? !displacedGift
+                    ? '請看大螢幕，選擇搶其他尚未冷凍的禮物，或選擇不搶保留目前禮物！'
+                    : `請看大螢幕，選擇搶其他尚未冷凍的禮物，或選擇不搶收下待認領禮物【${displacedGift?.title || '禮物'}】！`
+                  : !displacedGift
+                  ? '全體禮物已拆封完畢，第 1 棒正在大螢幕決定是否搶奪場上禮物！'
+                  : '正在大螢幕決定是否搶奪其他尚未冷凍的禮物！'}
               </p>
             </div>
           )
@@ -774,7 +785,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
       <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>
         <DialogContent className="max-w-xs sm:max-w-sm p-4 sm:p-5 bg-white border-stone-200 rounded-3xl text-stone-900 max-h-[85vh] flex flex-col">
           <DialogHeader className="text-left pb-2 border-b border-stone-100 shrink-0">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <Radio className="w-4 h-4 text-rose-600 animate-pulse" />
                 <DialogTitle className="text-base font-extrabold text-stone-900">
@@ -794,22 +805,20 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
               <button
                 type="button"
                 onClick={() => setLogsDialogTab('logs')}
-                className={`flex-1 py-1 rounded-lg transition-all text-center ${
-                  logsDialogTab === 'logs'
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${logsDialogTab === 'logs'
                     ? 'bg-white text-stone-900 shadow-2xs font-bold'
                     : 'text-stone-500 hover:text-stone-800'
-                }`}
+                  }`}
               >
                 即時動態
               </button>
               <button
                 type="button"
                 onClick={() => setLogsDialogTab('players')}
-                className={`flex-1 py-1 rounded-lg transition-all text-center ${
-                  logsDialogTab === 'players'
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${logsDialogTab === 'players'
                     ? 'bg-white text-stone-900 shadow-2xs font-bold'
                     : 'text-stone-500 hover:text-stone-800'
-                }`}
+                  }`}
               >
                 玩家名單 ({gameState?.participants.length || 0})
               </button>
@@ -837,19 +846,18 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                   return (
                     <div
                       key={log.id}
-                      className={`p-2.5 rounded-2xl border text-xs transition-all ${
-                        isChat
+                      className={`p-2.5 rounded-2xl border text-xs transition-all ${isChat
                           ? 'border-sky-200 bg-sky-50/70 text-sky-950'
                           : isEmoji
-                          ? 'border-amber-200 bg-amber-50/60 text-amber-950'
-                          : isFreeze
-                          ? 'border-cyan-200 bg-cyan-50/70 text-cyan-950'
-                          : isSteal
-                          ? 'border-amber-200 bg-amber-50/70 text-amber-950'
-                          : isOpen
-                          ? 'border-rose-200 bg-rose-50/50 text-rose-950'
-                          : 'border-stone-200/80 bg-stone-50/60 text-stone-800'
-                      }`}
+                            ? 'border-amber-200 bg-amber-50/60 text-amber-950'
+                            : isFreeze
+                              ? 'border-cyan-200 bg-cyan-50/70 text-cyan-950'
+                              : isSteal
+                                ? 'border-amber-200 bg-amber-50/70 text-amber-950'
+                                : isOpen
+                                  ? 'border-rose-200 bg-rose-50/50 text-rose-950'
+                                  : 'border-stone-200/80 bg-stone-50/60 text-stone-800'
+                        }`}
                     >
                       <div className="flex items-center justify-between gap-1 mb-1">
                         <span className="inline-flex items-center gap-1 font-bold text-[11px] truncate">
@@ -915,22 +923,20 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                   return (
                     <div
                       key={p.id}
-                      className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all ${
-                        isMe
+                      className={`flex items-center justify-between p-2.5 rounded-2xl border text-xs transition-all ${isMe
                           ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-500/25 shadow-xs'
                           : isActive
-                          ? 'bg-amber-50/80 border-amber-300'
-                          : 'bg-stone-50 border-stone-200'
-                      }`}
+                            ? 'bg-amber-50/80 border-amber-300'
+                            : 'bg-stone-50 border-stone-200'
+                        }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="text-xl shrink-0">{p.avatarEmoji || '🎅'}</span>
                         <div className="min-w-0">
                           <div className="flex items-center gap-1.5">
                             <span
-                              className={`font-bold truncate ${
-                                isMe ? 'text-rose-900 font-extrabold' : 'text-stone-900'
-                              }`}
+                              className={`font-bold truncate ${isMe ? 'text-rose-900 font-extrabold' : 'text-stone-900'
+                                }`}
                             >
                               {p.name}
                             </span>
@@ -954,11 +960,10 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
                       <div className="text-right shrink-0 font-mono">
                         {p.order > 0 ? (
                           <span
-                            className={`inline-block font-extrabold px-2.5 py-1 rounded-xl text-xs ${
-                              isMe
+                            className={`inline-block font-extrabold px-2.5 py-1 rounded-xl text-xs ${isMe
                                 ? 'bg-rose-600 text-white shadow-2xs'
                                 : 'bg-white border border-stone-200 text-stone-800'
-                            }`}
+                              }`}
                           >
                             第 {p.order} 棒
                           </span>

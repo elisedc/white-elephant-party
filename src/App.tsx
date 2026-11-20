@@ -21,7 +21,7 @@ import { LandingJoinScreen } from '@/components/home/LandingJoinScreen'
 import { RoomRealtimeBridge } from '@/services/realtime/channel'
 import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown, Gift, Users, ArrowRightLeft } from 'lucide-react'
+import { Sparkles, Crown, Gift, Users, ArrowRightLeft, Flame } from 'lucide-react'
 import { GameState } from '@/types/game'
 
 /**
@@ -250,6 +250,9 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
   const activeSwapGift = game.gifts.find(
     (g) => g.currentOwnerId === activeSwapParticipant?.id || g.id === activeSwapParticipant?.giftId
   )
+  const displacedGift = game.turnState.displacedGiftId
+    ? game.gifts.find((g) => g.id === game.turnState.displacedGiftId)
+    : undefined
 
   // Can the active participant steal?
   const eligibleGiftsToSteal = game.gifts.filter(
@@ -346,28 +349,36 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         {game.phase === 'FINAL_SWAP' && activeSwapParticipant && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch flex-1 min-h-0">
             <div className="lg:col-span-2 space-y-6">
-              <div className="p-8 rounded-3xl border border-amber-300 bg-amber-50/80 shadow-xs text-center space-y-4">
-                <span className="text-xs font-bold text-amber-800 uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-200">
-                  {activeSwapParticipant.order === 1 ? (
+              <div className={`p-8 rounded-3xl border shadow-xs text-center space-y-4 ${
+                !displacedGift
+                  ? 'border-amber-300 bg-amber-50/80'
+                  : 'border-rose-300 bg-rose-50/80'
+              }`}>
+                <span className={`text-xs font-bold uppercase tracking-wider inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${
+                  !displacedGift
+                    ? 'bg-amber-100 border-amber-200 text-amber-800'
+                    : 'bg-rose-100 border-rose-200 text-rose-800'
+                }`}>
+                  {!displacedGift ? (
                     <Crown className="w-3.5 h-3.5 text-amber-700" />
                   ) : (
-                    <ArrowRightLeft className="w-3.5 h-3.5 text-amber-700" />
+                    <Flame className="w-3.5 h-3.5 text-rose-600 fill-rose-600" />
                   )}
-                  {activeSwapParticipant.order === 1
-                    ? '最終交換權 (The Final Turn)'
-                    : '被換禮反擊特權 (Swap Reaction)'}
+                  {!displacedGift
+                    ? '最終搶禮特權 (The Final Steal)'
+                    : '被搶反擊特權 (Steal Reaction)'}
                 </span>
 
                 <h2 className="text-3xl font-extrabold text-stone-900 tracking-tight">
-                  {activeSwapParticipant.order === 1
-                    ? `輪到第 1 棒【${activeSwapParticipant.name}】行使特權！`
-                    : `【${activeSwapParticipant.name}】的禮物被換走了！`}
+                  {!displacedGift
+                    ? `輪到第 1 棒【${activeSwapParticipant.name}】行使搶禮特權！`
+                    : `【${activeSwapParticipant.name}】的禮物被搶走了！`}
                 </h2>
 
                 <p className="text-sm text-stone-600 max-w-md mx-auto">
-                  {activeSwapParticipant.order === 1
-                    ? '所有人都已拆開禮物，第 1 棒現在可以決定保留目前禮物，或與場上任一未冰凍禮物互換！'
-                    : `【${activeSwapParticipant.name}】現在可以決定保留手中的新禮物，或與場上其他未冰凍禮物互換！`}
+                  {!displacedGift
+                    ? '所有人都已拆開禮物，第 1 棒可以選擇搶其他尚未冷凍的禮物，或選擇不搶保留目前禮物！'
+                    : `【${activeSwapParticipant.name}】可以選擇搶其他尚未冷凍的禮物，或選擇不搶並收下待認領禮物【${displacedGift?.title || '禮物'}】！`}
                 </p>
 
                 <div className="pt-2">
@@ -375,10 +386,18 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
                     size="lg"
                     variant="default"
                     onClick={() => setFinalSwapModalOpen(true)}
-                    className="font-bold text-base h-12 px-8 bg-amber-500 hover:bg-amber-600 text-white shadow-xs"
+                    className={`font-bold text-base h-12 px-8 text-white shadow-xs ${
+                      !displacedGift
+                        ? 'bg-amber-500 hover:bg-amber-600'
+                        : 'bg-rose-600 hover:bg-rose-700'
+                    }`}
                   >
-                    <Sparkles className="w-4 h-4 mr-2" />
-                    {activeSwapParticipant.order === 1 ? '進行最終決定' : '進行換禮決定'}
+                    {!displacedGift ? (
+                      <Sparkles className="w-4 h-4 mr-2" />
+                    ) : (
+                      <Flame className="w-4 h-4 mr-2 fill-white" />
+                    )}
+                    進行搶禮決定
                   </Button>
                 </div>
               </div>
@@ -465,18 +484,19 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         onSteal={stealGift}
       />
 
-      {/* Final Swap Modal */}
+      {/* Final Swap / Steal Modal */}
       {activeSwapParticipant && (
         <FinalSwapModal
           open={finalSwapModalOpen}
           onOpenChange={setFinalSwapModalOpen}
           activeParticipant={activeSwapParticipant}
           activeGift={activeSwapGift}
+          displacedGift={displacedGift}
           gifts={game.gifts}
           participants={game.participants}
           lastStolenGiftId={game.turnState.lastStolenGiftId}
           allowImmediateStealBack={game.settings.allowImmediateStealBack}
-          onExecuteSwap={executeFinalSwap}
+          onExecuteAction={executeFinalSwap}
         />
       )}
 
