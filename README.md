@@ -145,24 +145,14 @@ cd white-elephant
 npm install
 ```
 
-### 2. Running the Development Server
+### 2. Running the Server
 Start the local server with LAN access enabled:
 ```bash
-npm run dev
+npm start
 ```
 The server will bind to port `5174` with `--host`:
 - **Host View**: Open `http://localhost:5174/?role=host` (or click "我是主辦人" on the landing page).
 - **Player View (Mobile)**: Connect your phone to the **same Wi-Fi network**, scan the QR code displayed on the host setup screen, or browse to `http://<YOUR_LOCAL_IP>:5174` and enter the 6-character room code.
-
-### 3. Production Build & Preview
-To validate the build or run in preview mode:
-```bash
-# Type check and bundle
-npm run build
-
-# Preview production build with LAN WebSocket support
-npm run preview
-```
 
 ---
 
