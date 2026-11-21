@@ -291,7 +291,6 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
         onOpenRules={() => setRulesOpen(true)}
         onNewGame={() => setResetModalOpen(true)}
-        onOpenQrCode={game.phase !== 'SETUP' ? () => setQrModalOpen(true) : undefined}
         onBackToLanding={onBackToLanding}
       />
 

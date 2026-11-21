@@ -30,7 +30,8 @@ export const GameSummary: React.FC<GameSummaryProps> = ({
 
   const mostStolenGift = [...game.gifts].sort((a, b) => b.stealCount - a.stealCount)[0]
 
-  const getGift = (giftId?: string) => game.gifts.find((g) => g.id === giftId)
+  const getGift = (p: { giftId?: string; id: string }) =>
+    game.gifts.find((g) => (p.giftId && g.id === p.giftId) || g.currentOwnerId === p.id)
 
   const copyResultsToClipboard = () => {
     let text = `【${game.settings.title}】交換禮物結果公布\n\n`
@@ -40,7 +41,7 @@ export const GameSummary: React.FC<GameSummaryProps> = ({
 
     const sorted = [...game.participants].sort((a, b) => (a.order || 0) - (b.order || 0))
     sorted.forEach((p) => {
-      const g = getGift(p.giftId)
+      const g = getGift(p)
       const stealTag = g && g.stealCount > 0 ? ` (被搶奪 ${g.stealCount} 次)` : ''
       const freezeTag = g && g.isFrozen ? ' (已冰凍)' : ''
       text += `• 第 ${p.order} 棒 ${p.name} ➔ 【${g?.title || '神秘禮物'}】${stealTag}${freezeTag}\n`
@@ -167,10 +168,10 @@ export const GameSummary: React.FC<GameSummaryProps> = ({
 
         <CardContent className="pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {game.participants
+            {[...game.participants]
               .sort((a, b) => (a.order || 0) - (b.order || 0))
               .map((p) => {
-                const gift = getGift(p.giftId)
+                const gift = getGift(p)
 
                 return (
                   <div
