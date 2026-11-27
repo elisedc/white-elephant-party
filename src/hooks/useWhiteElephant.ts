@@ -267,17 +267,33 @@ export function useWhiteElephant() {
   }, [game, saveState, soundEnabled])
 
   // Remove Participant
-  const removeParticipant = useCallback(async (id: string) => {
-    if (!game) return
-    const updatedParticipants = game.participants.filter((p) => p.id !== id)
+  const removeParticipant = useCallback(async (id: string): Promise<GameState | null> => {
+    const currentGame = stateRef.current
+    if (!currentGame) return null
+    const leaving = currentGame.participants.find((p) => p.id === id)
+    const updatedParticipants = currentGame.participants.filter((p) => p.id !== id)
+
+    const leaveLog: ActionLog | null = leaving
+      ? {
+          id: `leave_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+          timestamp: Date.now(),
+          type: 'CHAT_MESSAGE',
+          actorName: leaving.name,
+          actorAvatarEmoji: leaving.avatarEmoji,
+          message: `${leaving.avatarEmoji || '👋'} ${leaving.name} 離開了遊戲`,
+        }
+      : null
+
     const updated: GameState = {
-      ...game,
+      ...currentGame,
       participants: updatedParticipants,
       unopenedGiftsCount: updatedParticipants.length,
-      historyStack: pushHistorySnapshot(game),
+      logs: leaveLog ? [leaveLog, ...currentGame.logs].slice(0, 80) : currentGame.logs,
+      historyStack: pushHistorySnapshot(currentGame),
     }
     await saveState(updated)
-  }, [game, saveState])
+    return updated
+  }, [saveState])
 
   // Clear Participants (by mode: 'local' or 'online', or all)
   const clearParticipants = useCallback(async (mode?: 'online' | 'local') => {

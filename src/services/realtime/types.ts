@@ -2,6 +2,8 @@ import { GameState } from '@/types/game'
 
 export type RealtimeMessageType =
   | 'PLAYER_JOIN'
+  | 'PLAYER_LEAVE'
+  | 'ROOM_CLOSED'
   | 'SYNC_STATE'
   | 'REQUEST_SYNC'
   | 'CHAT_MESSAGE'
@@ -18,6 +20,15 @@ export interface PlayerJoinPayload {
   id: string
   name: string
   avatarEmoji: string
+}
+
+export interface PlayerLeavePayload {
+  id: string
+  name: string
+}
+
+export interface RoomClosedPayload {
+  message?: string
 }
 
 export interface ChatMessagePayload {

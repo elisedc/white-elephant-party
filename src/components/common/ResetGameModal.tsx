@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { AlertCircle, Users, Trash2 } from 'lucide-react'
+import { AlertCircle, Users, Trash2, Home } from 'lucide-react'
 
 interface ResetGameModalProps {
   open: boolean
@@ -16,6 +16,7 @@ interface ResetGameModalProps {
   participantCount: number
   onResetKeepParticipants: () => void
   onResetFresh: () => void
+  onEndGameToLanding?: () => void
 }
 
 export const ResetGameModal: React.FC<ResetGameModalProps> = ({
@@ -24,6 +25,7 @@ export const ResetGameModal: React.FC<ResetGameModalProps> = ({
   participantCount,
   onResetKeepParticipants,
   onResetFresh,
+  onEndGameToLanding,
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,10 +80,33 @@ export const ResetGameModal: React.FC<ResetGameModalProps> = ({
                 完全清空並建立全新局
               </p>
               <p className="text-xs text-rose-700/80 mt-0.5">
-                清空所有玩家、禮物與紀錄，回到全新的初始設定
+                清空所有玩家、禮物與紀錄，通知線上玩家遊戲已結束並回到全新初始設定
               </p>
             </div>
           </button>
+
+          {onEndGameToLanding && (
+            <button
+              type="button"
+              onClick={() => {
+                onEndGameToLanding()
+                onOpenChange(false)
+              }}
+              className="w-full text-left p-3.5 rounded-xl border border-stone-200 bg-stone-50 hover:bg-stone-100 transition-all flex items-center gap-3"
+            >
+              <div className="h-9 w-9 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <Home className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-stone-900">
+                  結束遊戲並返回大廳
+                </p>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  結束目前此局遊戲，通知所有線上玩家並回到首頁
+                </p>
+              </div>
+            </button>
+          )}
         </div>
 
         <DialogFooter className="pt-2">

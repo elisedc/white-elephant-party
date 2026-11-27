@@ -40,6 +40,8 @@ interface PlayerMobileViewProps {
   gameState: GameState | null
   onBackToLanding?: () => void
   onJoinSuccess?: (player: Participant) => void
+  isRoomClosed?: boolean
+  roomClosedMessage?: string
 }
 
 const AVATAR_OPTIONS = ['🎅', '🎄', '⛄', '🎁', '🦌', '🔔', '⭐', '🍪', '🧦', '🐧', '🐻', '🦊']
@@ -50,6 +52,8 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   bridge,
   gameState,
   onBackToLanding,
+  isRoomClosed,
+  roomClosedMessage,
 }) => {
   // Check if player has already joined this room
   const sessionKey = `we_player_${roomId}`
@@ -65,7 +69,20 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   // Leave room confirmation dialog
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
 
+  // Room closed / Host ended game state
+  const [closedInfo, setClosedInfo] = useState<{ isClosed: boolean; message: string }>({
+    isClosed: Boolean(isRoomClosed),
+    message: roomClosedMessage || '',
+  })
+  const [closedCountdown, setClosedCountdown] = useState(5)
+
   const handleExitToLanding = () => {
+    if (myPlayer) {
+      bridge.send('PLAYER_LEAVE', {
+        id: myPlayer.id,
+        name: myPlayer.name,
+      })
+    }
     try {
       localStorage.removeItem(sessionKey)
     } catch {
@@ -73,8 +90,36 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
     }
     setMyPlayer(null)
     setShowLeaveDialog(false)
+    setClosedInfo({ isClosed: false, message: '' })
     onBackToLanding?.()
   }
+
+  // Update closedInfo if prop changes
+  useEffect(() => {
+    if (isRoomClosed && !closedInfo.isClosed) {
+      setClosedInfo({
+        isClosed: true,
+        message: roomClosedMessage || '主辦人已結束此局遊戲',
+      })
+    }
+  }, [isRoomClosed, roomClosedMessage, closedInfo.isClosed])
+
+  // Countdown timer when room is closed
+  useEffect(() => {
+    if (!closedInfo.isClosed) return
+    setClosedCountdown(5)
+    const timer = setInterval(() => {
+      setClosedCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer)
+          handleExitToLanding()
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [closedInfo.isClosed])
 
   // Join form state
   const [nameInput, setNameInput] = useState('')
@@ -150,6 +195,11 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           msg.payload.senderName,
           msg.payload.avatarEmoji
         )
+      } else if (msg.type === 'ROOM_CLOSED') {
+        setClosedInfo({
+          isClosed: true,
+          message: msg.payload?.message || '主辦人已結束此局遊戲',
+        })
       }
     })
     return unsubscribe
@@ -225,6 +275,41 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
     const preferredX = btnIndex !== undefined ? 14 + btnIndex * 14.5 : 50
     triggerReaction(emoji, myPlayer.name, myPlayer.avatarEmoji, preferredX)
   }
+
+  const renderRoomClosedDialog = () => (
+    <Dialog open={closedInfo.isClosed} onOpenChange={() => {}}>
+      <DialogContent
+        className="max-w-xs p-6 bg-white border-stone-200 rounded-3xl text-center shadow-xl"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <div className="w-14 h-14 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3 text-2xl border border-rose-100">
+          🚪
+        </div>
+        <DialogTitle className="text-lg font-extrabold text-stone-900">
+          遊戲已結束
+        </DialogTitle>
+        <DialogDescription className="text-xs text-stone-600 pt-1 leading-relaxed">
+          {closedInfo.message || '主辦人已結束此局遊戲，請返回大廳。'}
+        </DialogDescription>
+
+        <div className="py-2 text-[11px] text-stone-400 font-medium">
+          {closedCountdown > 0 ? `${closedCountdown} 秒後自動返回大廳...` : '正在返回大廳...'}
+        </div>
+
+        <div className="pt-2">
+          <Button
+            type="button"
+            variant="default"
+            onClick={handleExitToLanding}
+            className="w-full text-sm h-10 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl shadow-xs"
+          >
+            返回大廳
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
 
   // -------------------------------------------------------------
   // VIEW 1: JOIN SCREEN (If player has not joined yet)
@@ -322,6 +407,8 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
             </button>
           )}
         </div>
+
+        {renderRoomClosedDialog()}
       </div>
     )
   }
@@ -743,7 +830,15 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
               返回遊戲首頁？
             </DialogTitle>
             <DialogDescription className="text-xs text-stone-500 pt-1 leading-relaxed">
-              你目前已加入房間【<span className="font-mono font-bold text-stone-800">{roomId}</span>】。你可以隨時再輸入代碼回到房間。
+              {gameState?.phase === 'SETUP' ? (
+                <>
+                  你目前已加入房間【<span className="font-mono font-bold text-stone-800">{roomId}</span>】。確認離開將會把你從主螢幕名單中移除。
+                </>
+              ) : (
+                <>
+                  你目前已加入房間【<span className="font-mono font-bold text-stone-800">{roomId}</span>】。你可以隨時再輸入代碼回到房間。
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
 
@@ -767,6 +862,9 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Room Closed / Host Ended Game Dialog */}
+      {renderRoomClosedDialog()}
 
       {/* Logs & Participants Dialog */}
       <Dialog open={showLogsDialog} onOpenChange={setShowLogsDialog}>

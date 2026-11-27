@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useWhiteElephant } from '@/hooks/useWhiteElephant'
 import { Snowfall } from '@/components/common/Snowfall'
 import { ChristmasHeader } from '@/components/common/ChristmasHeader'
@@ -21,7 +21,14 @@ import { LandingJoinScreen } from '@/components/home/LandingJoinScreen'
 import { RoomRealtimeBridge } from '@/services/realtime/channel'
 import { FloatingReactionsOverlay, useFloatingReactions } from '@/components/common/FloatingReactionsOverlay'
 import { Button } from '@/components/ui/button'
-import { Sparkles, Crown, Gift, Users, ArrowRightLeft, Flame } from 'lucide-react'
+import { Sparkles, Crown, Gift, Users, ArrowRightLeft, Flame, AlertCircle } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 import { GameState } from '@/types/game'
 
 /**
@@ -48,6 +55,9 @@ function PlayerApp({
     return null
   })
 
+  const [isRoomClosed, setIsRoomClosed] = useState(false)
+  const [roomClosedMessage, setRoomClosedMessage] = useState('')
+
   useEffect(() => {
     let isCancelled = false
 
@@ -55,6 +65,9 @@ function PlayerApp({
     const unsubscribe = bridge.subscribe((msg) => {
       if (msg.type === 'SYNC_STATE' && msg.payload?.gameState) {
         setGameState(msg.payload.gameState)
+      } else if (msg.type === 'ROOM_CLOSED') {
+        setIsRoomClosed(true)
+        setRoomClosedMessage(msg.payload?.message || '主辦人已結束此局遊戲')
       }
     })
 
@@ -73,6 +86,7 @@ function PlayerApp({
 
     // 4. Periodic heartbeat sync request to stay in sync
     const interval = setInterval(() => {
+      if (isCancelled || isRoomClosed) return
       bridge.send('REQUEST_SYNC', {})
       fetch(`/api/room-state?room=${encodeURIComponent(roomId)}`)
         .then((res) => res.json())
@@ -90,7 +104,7 @@ function PlayerApp({
       clearInterval(interval)
       bridge.destroy()
     }
-  }, [bridge, roomId])
+  }, [bridge, roomId, isRoomClosed])
 
   return (
     <PlayerMobileView
@@ -98,6 +112,8 @@ function PlayerApp({
       bridge={bridge}
       gameState={gameState}
       onBackToLanding={onBackToLanding}
+      isRoomClosed={isRoomClosed}
+      roomClosedMessage={roomClosedMessage}
     />
   )
 }
@@ -133,6 +149,7 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
 
   const [rulesOpen, setRulesOpen] = useState(false)
   const [resetModalOpen, setResetModalOpen] = useState(false)
+  const [hostExitConfirmOpen, setHostExitConfirmOpen] = useState(false)
   const [qrModalOpen, setQrModalOpen] = useState(false)
   const [openGiftModalOpen, setOpenGiftModalOpen] = useState(false)
   const [stealGiftModalOpen, setStealGiftModalOpen] = useState(false)
@@ -157,6 +174,21 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
 
   const gameRef = useRef(game)
   gameRef.current = game
+
+  const handleResetFresh = useCallback(() => {
+    if (bridge) {
+      bridge.send('ROOM_CLOSED', { message: '主辦人已結束此局遊戲' })
+    }
+    startNewGame()
+  }, [bridge, startNewGame])
+
+  const handleEndGameToLanding = useCallback(() => {
+    if (bridge) {
+      bridge.send('ROOM_CLOSED', { message: '主辦人已結束此局遊戲' })
+    }
+    startNewGame()
+    onBackToLanding?.()
+  }, [bridge, startNewGame, onBackToLanding])
 
   // Sync state broadcast whenever game updates
   useEffect(() => {
@@ -184,6 +216,14 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
           // If already in PLAYING or later phase, still sync state so player companion has current view
           bridge.send('SYNC_STATE', { gameState: currentGame })
         }
+      } else if (msg.type === 'PLAYER_LEAVE') {
+        const { id } = msg.payload
+        if (currentGame.phase === 'SETUP') {
+          const updated = await removeParticipant(id)
+          if (updated) {
+            bridge.send('SYNC_STATE', { gameState: updated })
+          }
+        }
       } else if (msg.type === 'EMOJI_REACTION') {
         const { senderId, senderName, avatarEmoji, emoji } = msg.payload
         triggerReaction(emoji, senderName, avatarEmoji)
@@ -206,7 +246,7 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
     return () => {
       unsubscribe()
     }
-  }, [bridge, addParticipant, addLiveLog, triggerReaction])
+  }, [bridge, addParticipant, removeParticipant, addLiveLog, triggerReaction])
 
   useEffect(() => {
     if (game?.phase === 'PLAYING') {
@@ -291,7 +331,7 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         onToggleSound={() => setSoundEnabled(!soundEnabled)}
         onOpenRules={() => setRulesOpen(true)}
         onNewGame={() => setResetModalOpen(true)}
-        onBackToLanding={onBackToLanding}
+        onBackToLanding={() => setHostExitConfirmOpen(true)}
       />
 
       {/* Main Body */}
@@ -460,7 +500,8 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
         onOpenChange={setResetModalOpen}
         participantCount={game.participants.length}
         onResetKeepParticipants={resetKeepParticipants}
-        onResetFresh={startNewGame}
+        onResetFresh={handleResetFresh}
+        onEndGameToLanding={handleEndGameToLanding}
       />
 
       {/* Open Gift Modal (Simple: Title & Tags only) */}
@@ -530,6 +571,43 @@ function HostApp({ onBackToLanding }: { onBackToLanding?: () => void }) {
 
       {/* Google Meet Style Live Floating Reactions Overlay on Host Screen */}
       <FloatingReactionsOverlay reactions={reactions} showSenderName={true} />
+
+      {/* Host Exit Confirmation Dialog */}
+      <Dialog open={hostExitConfirmOpen} onOpenChange={setHostExitConfirmOpen}>
+        <DialogContent className="max-w-md border-stone-200 bg-white text-stone-900">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-stone-900 flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+              結束遊戲並返回大廳？
+            </DialogTitle>
+            <DialogDescription className="text-stone-500 text-xs">
+              結束後將會關閉此房間，通知所有線上玩家返回大廳，並清除此局資料。
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex justify-end gap-2 pt-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setHostExitConfirmOpen(false)}
+              className="text-xs text-stone-600"
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => {
+                setHostExitConfirmOpen(false)
+                handleEndGameToLanding()
+              }}
+              className="text-xs bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            >
+              確定結束並返回大廳
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Clean Footer - NO "本地存檔" text */}
       <footer className="border-t border-stone-200/80 bg-white py-2 px-4 text-center text-[11px] text-stone-500 shrink-0">
