@@ -65,12 +65,7 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
   // Leave room confirmation dialog
   const [showLeaveDialog, setShowLeaveDialog] = useState(false)
 
-  const handleConfirmLeave = () => {
-    setShowLeaveDialog(false)
-    onBackToLanding?.()
-  }
-
-  const handleExitAndClearIdentity = () => {
+  const handleExitToLanding = () => {
     try {
       localStorage.removeItem(sessionKey)
     } catch {
@@ -755,25 +750,17 @@ export const PlayerMobileView: React.FC<PlayerMobileViewProps> = ({
           <div className="flex flex-col gap-2 pt-3">
             <Button
               type="button"
-              variant="outline"
-              onClick={handleConfirmLeave}
-              className="w-full text-xs h-9 font-semibold text-stone-700 border-stone-200 hover:bg-stone-50 rounded-xl"
+              variant="default"
+              onClick={handleExitToLanding}
+              className="w-full text-xs h-9 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl"
             >
-              返回首頁（保留此房間身份）
+              確定返回首頁
             </Button>
             <Button
               type="button"
               variant="ghost"
-              onClick={handleExitAndClearIdentity}
-              className="w-full text-xs h-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 rounded-xl font-medium"
-            >
-              退出並清除登入記錄
-            </Button>
-            <Button
-              type="button"
-              variant="default"
               onClick={() => setShowLeaveDialog(false)}
-              className="w-full text-xs h-9 bg-stone-900 hover:bg-stone-800 text-white font-bold rounded-xl"
+              className="w-full text-xs h-9 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-xl font-medium"
             >
               留在房間
             </Button>
